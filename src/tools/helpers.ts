@@ -1,6 +1,7 @@
 import { CHARACTER_LIMIT, INTERNATIONAL, SITE_ORIGIN } from "../constants.js";
-import { formatError } from "../utils/errors.js";
+import { formatError, UdayBookingError } from "../utils/errors.js";
 import type { Logger } from "../utils/logger.js";
+import { sanitizeClientName, type UsageStats } from "../services/usage.js";
 
 /**
  * Shape the MCP SDK expects back from a tool handler.
@@ -76,25 +77,63 @@ export function fail(error: unknown): ToolResult {
   };
 }
 
+/** Per-server usage hooks, attached to the logger handed to each tool. */
+export interface ToolTelemetry {
+  /** Shared counters for `/health`. */
+  usage?: UsageStats;
+  /** The connected client's `clientInfo.name`, once `initialize` has run. */
+  clientName?: () => string | undefined;
+  /** Emit one `info` "tool call" line per call. */
+  logCalls: boolean;
+}
+
+export type TelemetryLogger = Logger & { telemetry?: ToolTelemetry };
+
+/** A logger that also carries usage hooks, without changing any tool signature. */
+export function withTelemetry(logger: Logger, telemetry: ToolTelemetry): TelemetryLogger {
+  return { ...logger, telemetry };
+}
+
 /**
  * Wraps a handler so a thrown error becomes an `isError` result rather than a
- * transport failure, and every call is logged to stderr with its duration.
+ * transport failure, and records one usage line per call: tool, outcome,
+ * latency, error code and client name. **Arguments are never logged** — queries
+ * and paths can carry personal text — and neither are error messages, which
+ * can quote them.
  */
 export function guard<A>(
   logger: Logger,
   toolName: string,
   handler: (args: A) => Promise<ToolResult>,
 ): (args: A) => Promise<ToolResult> {
+  const telemetry = (logger as TelemetryLogger).telemetry;
+
+  const record = (ok: boolean, ms: number, errorCode?: string): void => {
+    telemetry?.usage?.record(toolName, ok, ms);
+    if (telemetry?.logCalls) {
+      const client = sanitizeClientName(telemetry.clientName?.());
+      logger.info("tool call", {
+        tool: toolName,
+        ok,
+        ms,
+        ...(errorCode ? { error_code: errorCode } : {}),
+        ...(client ? { client } : {}),
+      });
+    }
+  };
+
   return async (args: A): Promise<ToolResult> => {
     const started = Date.now();
     try {
       const result = await handler(args);
-      logger.debug("tool completed", { tool: toolName, ms: Date.now() - started });
+      record(result.isError !== true, Date.now() - started);
       return result;
     } catch (error) {
-      logger.warn("tool failed", {
+      const code = error instanceof UdayBookingError ? error.code : "INTERNAL";
+      record(false, Date.now() - started, code);
+      // The message can quote caller input, so it stays at debug level.
+      logger.debug("tool failed", {
         tool: toolName,
-        ms: Date.now() - started,
         error: error instanceof Error ? error.message : String(error),
       });
       return fail(error);

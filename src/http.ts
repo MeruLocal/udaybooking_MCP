@@ -225,6 +225,7 @@ async function main(): Promise<void> {
             ? new Date(services.site.catalogLoadedAt).toISOString()
             : null,
         indexBuiltAt: services.search.indexBuiltAt,
+        usage: services.usage.snapshot(),
         readOnly: true,
         upstream: config.baseUrl,
       });

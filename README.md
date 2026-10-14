@@ -68,7 +68,7 @@ absolute path:
 | `GET` | `/` | Landing page (also served to a browser visiting `/mcp`) |
 | `GET` | `/version` | Server and protocol version, endpoint, tool count |
 | `GET` | `/.well-known/mcp.json` | Discovery document |
-| `GET` | `/health` | Liveness, sessions, cache stats |
+| `GET` | `/health` | Liveness, sessions, cache stats, catalogue/index age, per-tool usage counts |
 
 `npm run smoke:http` checks a running server end to end; `npm run inspect`
 opens the MCP Inspector over stdio.
@@ -85,6 +85,8 @@ common ones:
 | `UDAYBOOKING_MIN_REQUEST_INTERVAL_MS` | `250` | Gap between upstream requests |
 | `UDAYBOOKING_CACHE_TTL_MS` | `900000` | Page cache lifetime |
 | `UDAYBOOKING_MAX_RESPONSE_BYTES` | `5000000` | Largest upstream body read |
+| `UDAYBOOKING_CATALOG_TTL_MS` / `UDAYBOOKING_INDEX_TTL_MS` | `21600000` (6 h) | Background refresh of the sitemaps and search index (`0` = never) |
+| `UDAYBOOKING_USAGE_LOG` | `1` | One `tool call` log line per call (no arguments) |
 | `UDAYBOOKING_HTTP_PORT` / `PORT` | `3004` | HTTP port |
 | `UDAYBOOKING_HTTP_HOST` | `127.0.0.1` | HTTP bind address |
 | `UDAYBOOKING_HTTP_ALLOWED_HOSTS` | `localhost,127.0.0.1,[::1],mcp.udaybooking.com` | `Host` names answered |
@@ -92,6 +94,10 @@ common ones:
 | `UDAYBOOKING_HTTP_MAX_SESSIONS` | `100` | Concurrent HTTP sessions |
 | `TRUST_PROXY` | `0` | Use the right-most `X-Forwarded-For` hop as the client IP |
 | `PUBLIC_BASE_URL` | unset | URL advertised by discovery |
+
+Fetched page text, snippets, FAQ answers and `llms.txt` are marked in tool
+output as untrusted website content, and the server instructions tell agents to
+treat them as data, never as instructions.
 
 ## Security
 
