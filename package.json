@@ -1,7 +1,7 @@
 {
   "name": "udaybooking-mcp-server",
   "version": "1.0.0",
-  "description": "MCP server exposing the public, robots-permitted content of udaybooking.com (docs, guides, pricing, FAQs) to Claude Desktop and Claude Code over stdio.",
+  "description": "Official Udaybooking MCP server: read-only access to udaybooking.com docs, guides, pricing and FAQs, over stdio or Streamable HTTP.",
   "license": "MIT",
   "repository": {
     "type": "git",

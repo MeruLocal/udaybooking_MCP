@@ -74,12 +74,13 @@ export function buildServer(overrides?: Partial<Config>, shared?: Services): Bui
     { name: SERVER_NAME, version: SERVER_VERSION },
     {
       instructions: [
-        "udaybooking.com is a scheduling product's public marketing and documentation site.",
+        "This is the official Udaybooking MCP server. udaybooking.com is the public marketing",
+        "and documentation site of Udaybooking, a scheduling product.",
         "",
         "This server is READ-ONLY. It can search and read published pages, return plan prices",
         "from the site's structured data, and return its published FAQ answers. It CANNOT",
         "create, read, change or cancel a booking, check real availability, sign in, or take a",
-        "payment: udaybooking publishes no documented public API, and its robots.txt disallows",
+        "payment: Udaybooking publishes no public API reference yet, and its robots.txt disallows",
         "/api/ for every user agent.",
         "",
         "If a user asks to book, reschedule or cancel an appointment, call",

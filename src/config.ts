@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { SITE_ORIGIN } from "./constants.js";
+import { PACKAGE_VERSION } from "./version.js";
 
 /**
  * Runtime configuration, entirely from environment variables.
@@ -54,15 +55,13 @@ const ConfigSchema = z.object({
   indexMaxPages: z.coerce.number().int().min(5).max(200).default(40),
 
   /**
-   * Identifies this client to the origin, with contact details, as a well-behaved
-   * crawler should. Keep the URL in place so the site owner can reach you.
+   * Identifies this client to the origin, with a contact URL, as a well-behaved
+   * crawler should.
    */
   userAgent: z
     .string()
     .min(8)
-    .default(
-      "udaybooking-mcp-server/1.0 (+https://github.com/your-org/udaybooking-mcp-server)",
-    ),
+    .default(`udaybooking-mcp-server/${PACKAGE_VERSION} (+https://github.com/MeruLocal/udaybooking_MCP)`),
 
   /**
    * Largest response body read from the origin, in bytes. A larger (or endless)
