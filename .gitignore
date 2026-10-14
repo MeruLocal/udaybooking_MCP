@@ -1,7 +1,21 @@
 node_modules/
+dist/
+coverage/
+*.log
+npm-debug.log*
+
+# Secrets and local configuration — never commit
 .env
 .env.*
 !.env.example
-dist/
-*.log
+
+# Local caches / scratch
+.cache/
+.tmp/
+*.tsbuildinfo
+
+# Editor / OS
+.vscode/
+.idea/
 .DS_Store
+Thumbs.db
