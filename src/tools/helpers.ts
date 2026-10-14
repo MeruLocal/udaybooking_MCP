@@ -131,10 +131,11 @@ export function guard<A>(
     } catch (error) {
       const code = error instanceof UdayBookingError ? error.code : "INTERNAL";
       record(false, Date.now() - started, code);
-      // The message can quote caller input, so it stays at debug level.
+      // The message can quote caller input, so it is never logged, at any level.
       logger.debug("tool failed", {
         tool: toolName,
-        error: error instanceof Error ? error.message : String(error),
+        error_code: code,
+        error_name: error instanceof Error ? error.name : typeof error,
       });
       return fail(error);
     }

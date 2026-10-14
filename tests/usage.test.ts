@@ -83,6 +83,17 @@ describe("guard() usage line", () => {
     expect(lines.join("\n")).not.toContain("jane@example.com");
   });
 
+  it("logs no message or arguments at debug level either", async () => {
+    capture();
+    const logger = withTelemetry(createLogger({ logLevel: "debug" }), { logCalls: true });
+    const handler = guard(logger, "udaybooking_x", async () => {
+      throw notFound("No page for jane@example.com");
+    });
+    await handler({ query: "jane@example.com" });
+    expect(lines.some((l) => l.includes("tool failed"))).toBe(true);
+    expect(lines.join("\n")).not.toContain("jane@example.com");
+  });
+
   it("emits no usage line when UDAYBOOKING_USAGE_LOG is off", async () => {
     capture();
     const logger = withTelemetry(createLogger({ logLevel: "info" }), { logCalls: false });
