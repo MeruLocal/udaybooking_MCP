@@ -8,6 +8,8 @@ export interface MockOptions {
   flakyPaths?: Record<string, number>;
   /** Paths that never resolve, to exercise the timeout path. */
   hangingPaths?: string[];
+  /** Per-test route bodies that override the shared fixtures. */
+  routes?: Record<string, string>;
   /** Paths that answer with a redirect to the given Location (`null` = no header). */
   redirects?: Record<string, string | null>;
   /** Paths that stream the given number of bytes, without a content-length. */
@@ -114,7 +116,7 @@ export function mockFetch(options: MockOptions = {}): MockHandle {
       });
     }
 
-    const body = ROUTES[path];
+    const body = options.routes?.[path] ?? ROUTES[path];
     if (body === undefined) {
       return new Response("Not found", { status: 404, headers: { "content-type": "text/html" } });
     }

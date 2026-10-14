@@ -43,13 +43,13 @@ export const CAPABILITY_REPORT: CapabilityReport = {
       capability: "Plans and prices",
       detail:
         "Structured plan offers from the pricing page's schema.org SoftwareApplication.offers " +
-        "data, in both billing currencies (udaybooking_get_pricing).",
+        "data, in each currency the page publishes (udaybooking_get_pricing).",
     },
     {
       capability: "Published FAQ answers",
       detail:
-        "Exact authored question-and-answer pairs from schema.org FAQPage data: 22 on the " +
-        "help centre, 9 on the pricing page (udaybooking_get_faqs).",
+        "Exact authored question-and-answer pairs from schema.org FAQPage data: the FAQ " +
+        "pairs published on the help centre and pricing page (udaybooking_get_faqs).",
     },
     {
       capability: "Page catalogue and markets",
@@ -140,7 +140,7 @@ export const CAPABILITY_REPORT: CapabilityReport = {
       "and unauthorised access. Reading published pages within robots.txt is consistent with them; " +
       "probing undocumented endpoints would not be.",
     "Useful structured data is published and is used by this server: SoftwareApplication.offers " +
-      "on pricing pages, FAQPage (22 pairs on /help, 9 on /pricing), TechArticle on docs, " +
+      "on pricing pages, FAQPage on /help and /pricing, TechArticle on docs, " +
       "BlogPosting with dates on posts, and BreadcrumbList site-wide.",
   ],
 };

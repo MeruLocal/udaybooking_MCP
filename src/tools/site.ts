@@ -11,6 +11,8 @@ import {
 } from "../schemas/index.js";
 import { INTERNATIONAL, LLMS_TXT_PATH, MARKETS, SITE_ORIGIN } from "../constants.js";
 import { CAPABILITY_REPORT, renderCapabilityReport } from "../capabilities.js";
+
+const MARKET_NAMES = MARKETS.map((m) => m.name).join(", ");
 import { clamp, guard, ok } from "./helpers.js";
 
 /** Registers `udaybooking_list_markets`. */
@@ -26,9 +28,9 @@ Use this to resolve a country name to the market code other tools expect, or to 
 Args:
   - response_format ('markdown' | 'json'): output shape (default: 'markdown')
 
-Returns: each market's two-letter code, country name, locale, path prefix and home URL, plus notes on what does and does not vary between markets.
+Returns: each market's two-letter code, country name, locale, path prefix and home URL, plus notes on how the editions are addressed.
 
-There are seven country editions — India, United States, United Kingdom, Australia, New Zealand, Singapore, United Arab Emirates — and one unprefixed international edition, addressed as 'international'. udaybooking states the product, the plans and the prices are identical in every one; only wording, spelling and the currency framing differ.
+The country editions (${MARKET_NAMES}) come from the site's markets sitemap; the unprefixed international edition is addressed as 'international'. For what differs between markets, read each market's pages rather than assuming.
 
 Examples:
   - Use when: "Does udaybooking have a Singapore site?" -> returns code 'sg'
@@ -66,10 +68,9 @@ Error handling: this tool reads a fixed list enumerated from the site's markets 
         ];
 
         const notes = [
-          "Product, plans and prices are identical in every market; only wording and currency framing differ.",
-          "udaybooking bills in two currencies only: USD and INR.",
-          "Every market republishes the same documentation, guides, help centre and blog.",
+          "Each country edition lives under its two-letter path prefix; the international edition is unprefixed.",
           "Countries without their own edition are served by the international site.",
+          "For prices and currencies in a market, call udaybooking_get_pricing with that market.",
         ];
 
         const structured = { count: markets.length, markets, notes };

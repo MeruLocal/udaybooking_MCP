@@ -14,8 +14,7 @@ export const MarketEnum = z
   .enum([...MARKET_CODES, INTERNATIONAL] as [string, ...string[]])
   .describe(
     "Market edition of the site. Two-letter codes: 'in' (India), 'us', 'gb', 'au', 'nz', " +
-      "'sg', 'ae'. Use 'international' for the unprefixed edition. Product, plans and " +
-      "prices are identical across markets; only wording and currency framing differ.",
+      "'sg', 'ae'. Use 'international' for the unprefixed edition.",
   );
 
 export const SectionEnum = z
@@ -96,16 +95,18 @@ export const ListPagesInput = {
 export const GetPricingInput = {
   market: MarketEnum.default(INTERNATIONAL),
   currency: z
-    .enum(["USD", "INR", "all"])
+    .string()
+    .trim()
+    .regex(/^(all|[A-Za-z]{3})$/, "currency must be a three-letter ISO code or 'all'")
     .default("all")
     .describe(
-      "Filter machine-readable offers by billing currency. udaybooking bills in USD and " +
-        "INR only; every market's pricing page publishes both.",
+      "Filter machine-readable offers by billing currency (three-letter ISO code), or 'all'. " +
+        "The result lists the currencies the page publishes.",
     ),
   include_page_text: z
     .boolean()
     .default(false)
-    .describe("Also return the pricing page's prose (plan features, seat limits, guarantees)."),
+    .describe("Also return the pricing page's prose (plan features, limits, discounts)."),
   response_format: ResponseFormatEnum.default("markdown"),
 };
 
@@ -114,9 +115,9 @@ export const GetFaqsInput = {
     .enum(["help", "pricing"])
     .default("help")
     .describe(
-      "Which FAQ set to read. 'help' is the help centre (22 Q&A covering accounts, " +
-        "availability, guests, teams, reminders and polls); 'pricing' is the pricing " +
-        "FAQ (9 Q&A on plans, trials, platform fees and currency).",
+      "Which FAQ set to read. 'help' is the help centre (accounts, availability, guests, " +
+        "teams, reminders and polls); 'pricing' is the pricing FAQ (plans, trials, platform " +
+        "fees and currency). The result reports how many pairs the page publishes.",
     ),
   market: MarketEnum.default(INTERNATIONAL),
   query: z

@@ -204,12 +204,16 @@ describe("read-only tools over fixtures", () => {
     expect(structured.offers.find((o) => o.plan === "Professional")?.price).toBe(899);
   });
 
-  it("notes that Enterprise carries no machine-readable price", async () => {
+  it("derives its notes from the fetched offers, not from constants", async () => {
     const result = await client.callTool({
       name: "udaybooking_get_pricing",
       arguments: { market: "in" },
     });
-    expect(textOf(result)).toMatch(/Enterprise is quoted/i);
+    const notes = (result.structuredContent as { notes: string[] }).notes.join("\n");
+    expect(notes).toMatch(/Currencies published on this page: USD, INR\./);
+    expect(notes).toMatch(/Plans with a machine-readable price: Free, Professional\./);
+    // Claims that cannot be derived from the page data are no longer asserted.
+    expect(notes).not.toMatch(/identical in every market|Enterprise is quoted/i);
   });
 
   it("filters FAQs by query and reports the total available", async () => {
