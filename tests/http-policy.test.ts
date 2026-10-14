@@ -161,16 +161,19 @@ describe("Host allowlist", () => {
 
 describe("clientIp", () => {
   it("ignores X-Forwarded-For unless the proxy is trusted", () => {
-    expect(clientIp("10.0.0.1", "1.2.3.4", false)).toBe("10.0.0.1");
+    expect(clientIp("10.0.0.1", "1.2.3.4", 0)).toBe("10.0.0.1");
   });
 
   it("uses the right-most hop when trusted, which a client cannot forge", () => {
-    expect(clientIp("10.0.0.1", "6.6.6.6, 203.0.113.9", true)).toBe("203.0.113.9");
-    expect(clientIp("10.0.0.1", "203.0.113.9", true)).toBe("203.0.113.9");
+    expect(clientIp("10.0.0.1", "6.6.6.6, 203.0.113.9", 1)).toBe("203.0.113.9");
+    expect(clientIp("10.0.0.1", "6.6.6.6, 203.0.113.9, 172.70.0.1", 2)).toBe("203.0.113.9");
+    expect(clientIp("10.0.0.1", "6.6.6.6, 203.0.113.9, 172.70.0.1", 1)).toBe("172.70.0.1");
+    expect(clientIp("10.0.0.1", "203.0.113.9", 1)).toBe("203.0.113.9");
   });
 
   it("falls back to the socket address", () => {
-    expect(clientIp("10.0.0.1", undefined, true)).toBe("10.0.0.1");
+    expect(clientIp("10.0.0.1", undefined, 1)).toBe("10.0.0.1");
+    expect(clientIp("10.0.0.1", "203.0.113.9", 2)).toBe("10.0.0.1");
     expect(clientIp(undefined, undefined, false)).toBe("unknown");
   });
 });

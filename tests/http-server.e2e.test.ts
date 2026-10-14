@@ -109,6 +109,11 @@ describe("HTTP transport hardening (spawned server)", () => {
     expect(r.body).not.toContain("evil.example");
   });
 
+  it("answers /health for any Host but still refuses /mcp on a foreign Host", async () => {
+    expect((await raw(main.port, { path: "/health", headers: { host: "probe.internal" } })).status).toBe(200);
+    expect((await raw(main.port, { path: "/mcp", headers: { host: "evil.example" } })).status).toBe(403);
+  });
+
   it("answers an allowlisted Host", async () => {
     const r = await raw(main.port, { path: "/version", headers: { host: "mcp.udaybooking.com" } });
     expect(r.status).toBe(200);

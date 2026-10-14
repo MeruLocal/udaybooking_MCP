@@ -109,7 +109,9 @@ async function main(): Promise<void> {
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     // 1. Host allowlist: the DNS-rebinding guard for clients that send no Origin.
     //    The reply is deliberately generic and does not echo the Host.
-    if (!isAllowedHost(header(req, "host"), config.httpAllowedHosts)) {
+    //    /health is exempt so a proxy or container probe with its own Host works.
+    const isHealth = (req.url ?? "/").split("?")[0] === "/health";
+    if (!isHealth && !isAllowedHost(header(req, "host"), config.httpAllowedHosts)) {
       logger.warn("rejected request on disallowed host");
       sendJson(res, 403, { error: "Forbidden" });
       return;
@@ -388,7 +390,7 @@ async function main(): Promise<void> {
     logger.warn("PUBLIC_BASE_URL is not set on a non-loopback bind", {
       hint:
         "The discovery document will advertise http://<Host>. Behind Cloudflare/Apache set " +
-        "PUBLIC_BASE_URL=https://mcp.udaybooking.com (and TRUST_PROXY=1).",
+        "PUBLIC_BASE_URL=https://mcp.udaybooking.com (and TRUST_PROXY set to your proxy hop count).",
     });
   }
 

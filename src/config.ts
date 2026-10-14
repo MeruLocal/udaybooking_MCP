@@ -144,9 +144,10 @@ const ConfigSchema = z.object({
    * a client could otherwise pick its own rate-limit bucket.
    */
   trustProxy: z
-    .enum(["0", "1", "true", "false"])
+    .string()
+    .regex(/^(true|false|\d{1,2})$/, "must be a hop count such as 0, 1 or 2")
     .default("0")
-    .transform((v) => v === "1" || v === "true"),
+    .transform((v) => (v === "true" ? 1 : v === "false" ? 0 : Number(v))),
 
   /**
    * The public base URL advertised by `/.well-known/mcp.json`, for example
