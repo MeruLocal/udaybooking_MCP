@@ -25,6 +25,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "inspect": "npm run build && npx @modelcontextprotocol/inspector node dist/index.js",
     "prepublishOnly": "npm run build",
     "smoke": "npm run build && node scripts/smoke.mjs",
@@ -46,6 +47,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
+    "@vitest/coverage-v8": "^5.0.4",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^5.0.4"
