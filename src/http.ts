@@ -201,7 +201,7 @@ async function main(): Promise<void> {
           url: `${publicBase(req, config.publicBaseUrl, config.httpHost, config.httpPort)}${MCP_PATH}`,
         },
         authentication: { type: "none", note: "No API key is required; never send credentials." },
-        capabilities: { tools: {}, resources: {} },
+        capabilities: { tools: {}, resources: {}, prompts: {} },
         // A count, not a second copy of the tool list: tools/list is the source
         // of truth for names, so a hand-kept list here would only drift.
         toolCount: TOOL_CATALOG.length,

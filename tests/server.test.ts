@@ -47,7 +47,7 @@ afterEach(async () => {
 });
 
 describe("tool registration", () => {
-  it("registers exactly the eight implemented tools", async () => {
+  it("registers exactly the implemented tools", async () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
       "udaybooking_get_automation_capabilities",
@@ -55,6 +55,7 @@ describe("tool registration", () => {
       "udaybooking_get_page",
       "udaybooking_get_pricing",
       "udaybooking_get_site_summary",
+      "udaybooking_get_started",
       "udaybooking_list_markets",
       "udaybooking_list_pages",
       "udaybooking_search_content",

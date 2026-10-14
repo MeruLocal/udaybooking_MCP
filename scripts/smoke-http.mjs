@@ -39,7 +39,7 @@ const version = await fetch(`${base}/version`).then((r) => r.json());
 check("reports server name", version.name === "udaybooking-mcp-server");
 check("reports a version", typeof version.version === "string", version.version);
 check("reports protocol version", typeof version.protocolVersion === "string", version.protocolVersion);
-check("lists 8 tools", version.tools?.length === 8, `got ${version.tools?.length}`);
+check("lists 9 tools", version.tools?.length === 9, `got ${version.tools?.length}`);
 check("states no API key is needed", version.requiresApiKey === false);
 check("states no public upstream API", version.publicApiAvailable === false);
 
@@ -106,7 +106,7 @@ await c1.connect(t1);
 check("session id issued", Boolean(t1.sessionId), t1.sessionId);
 
 const { tools } = await c1.listTools();
-check("8 tools listed", tools.length === 8, `got ${tools.length}`);
+check("9 tools listed", tools.length === 9, `got ${tools.length}`);
 check(
   "all read-only",
   tools.every((t) => t.annotations?.readOnlyHint === true),

@@ -8,6 +8,8 @@ import { registerSearchTool } from "./tools/search.js";
 import { registerGetPageTool, registerListPagesTool } from "./tools/pages.js";
 import { registerPricingTool } from "./tools/pricing.js";
 import { registerFaqsTool } from "./tools/faqs.js";
+import { registerGetStartedTool } from "./tools/get-started.js";
+import { registerPrompts } from "./prompts.js";
 import {
   registerCapabilitiesTool,
   registerMarketsTool,
@@ -89,7 +91,8 @@ export function buildServer(overrides?: Partial<Config>, shared?: Services): Bui
         "",
         "Suggested order: udaybooking_get_site_summary to orient, udaybooking_search_content to",
         "locate a page, then udaybooking_get_page to read it. Use udaybooking_get_pricing for",
-        "cost questions and udaybooking_get_faqs for short factual ones.",
+        "cost questions and udaybooking_get_faqs for short factual ones. When a user wants to",
+        "try or buy, call udaybooking_get_started.",
       ].join("\n"),
     },
   );
@@ -103,6 +106,9 @@ export function buildServer(overrides?: Partial<Config>, shared?: Services): Bui
   registerMarketsTool(server, logger);
   registerSiteSummaryTool(server, site, logger);
   registerCapabilitiesTool(server, logger);
+  registerGetStartedTool(server, site, logger);
+
+  registerPrompts(server);
 
   registerResources(server, site);
 

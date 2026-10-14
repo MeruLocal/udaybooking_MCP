@@ -1,3 +1,4 @@
+import { withUtm } from "../utils/utm.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SiteClient } from "../services/site-client.js";
 import type { Logger } from "../utils/logger.js";
@@ -64,8 +65,9 @@ Error handling:
       const page = await site.getPage(args.path);
       const body = clamp(page.markdown, args.max_chars);
 
+      const link = withUtm(page.url, "udaybooking_get_page");
       const structured = {
-        url: page.url,
+        url: link,
         path: page.path,
         market: page.market,
         section: page.section,
@@ -89,7 +91,7 @@ Error handling:
         `# ${page.title ?? page.path}`,
         "",
         bullets([
-          ["URL", page.url],
+          ["URL", link],
           ["Market", page.market],
           ["Section", page.section],
           ["Description", page.description],
@@ -189,7 +191,7 @@ Error handling:
         ...(hasMore ? { next_offset: args.offset + window.length } : {}),
         pages: window.map((entry) => ({
           path: entry.path,
-          url: entry.url,
+          url: withUtm(entry.url, "udaybooking_list_pages"),
           market: entry.market,
           section: entry.section,
           slug: entry.slug,

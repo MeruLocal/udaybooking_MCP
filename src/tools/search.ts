@@ -1,3 +1,4 @@
+import { withUtm } from "../utils/utm.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SearchIndex } from "../services/search-index.js";
 import type { Logger } from "../utils/logger.js";
@@ -75,7 +76,7 @@ Error handling:
         indexed_pages: indexedPages,
         results: hits.map((h) => ({
           title: h.title,
-          url: h.url,
+          url: withUtm(h.url, "udaybooking_search_content"),
           path: h.path,
           section: h.section,
           score: h.score,

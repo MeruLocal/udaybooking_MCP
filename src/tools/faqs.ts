@@ -1,3 +1,4 @@
+import { withUtm } from "../utils/utm.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SiteClient } from "../services/site-client.js";
 import type { Logger } from "../utils/logger.js";
@@ -81,7 +82,7 @@ Error handling:
 
       const structured = {
         source: args.source,
-        source_url: url,
+        source_url: withUtm(url, "udaybooking_get_faqs"),
         market: args.market,
         count: window.length,
         total_available: all.length,
@@ -103,7 +104,7 @@ Error handling:
       const lines = [
         `# udaybooking ${args.source} FAQ`,
         "",
-        `Source: ${url} · showing ${window.length} of ${all.length} published pairs.`,
+        `Source: ${withUtm(url, "udaybooking_get_faqs")} · showing ${window.length} of ${all.length} published pairs.`,
         "",
       ];
       for (const f of window) {
