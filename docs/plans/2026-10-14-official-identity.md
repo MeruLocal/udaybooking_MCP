@@ -15,7 +15,14 @@ The server is Udaybooking's own, but its agent-facing and human-facing text says
 - `package.json:4`: description says "over stdio", but the server also ships Streamable HTTP (`src/http.ts`, `Dockerfile`).
 - `src/config.ts:64` and `.env.example:54`: user agent uses the placeholder `https://github.com/your-org/udaybooking-mcp-server`.
 
-Measured: `audit-live-mcp.mjs` against a local `dist/http.js` (127.0.0.1:3004/mcp) on main gave 2 fail · 3 warn · 15 pass. None of those checks covers this text; this finding comes from reading the code.
+Measured (re-audit): `audit-live-mcp.mjs` (new script, 2026-10-14, local scratch build of main at 5b98fb1, `/mcp`, `--forbid-brands HelloGrowthCRM,hellocrm --sample-tool udaybooking_get_automation_capabilities`) gave **6 fail · 7 warn · 31 pass**. The earlier baseline (old script) was 2 fail · 3 warn · 15 pass. Three FAILs and one WARN belong to this plan:
+
+- FAIL `X.identity`: status page says "unofficial", "not affiliated".
+- FAIL `C9.payloads`: `udaybooking_get_automation_capabilities` output names HelloGrowthCRM.
+- FAIL `X.identity`: the same output says "static interactive mock".
+- WARN `X.identity`: status page repeats a paragraph.
+
+Also found (re-audit): `README.md:307` names HelloGrowthCRM as a sibling server, and `src/http.ts:377` names mcp.hellogrowthcrm.com in a code comment. README is published in npm `files`, so the README rewrite (step 6) must drop both; the comment should go too.
 
 ## Proposed fix
 
@@ -30,6 +37,8 @@ Measured: `audit-live-mcp.mjs` against a local `dist/http.js` (127.0.0.1:3004/mc
 9. **`scripts/smoke-http.mjs:68,74`:** update the title and footer checks.
 
 ## Tests to add
+
+- After implementing, re-run `audit-live-mcp.mjs ... --forbid-brands HelloGrowthCRM,hellocrm --sample-tool udaybooking_get_automation_capabilities`: the three FAILs and the duplicate-paragraph WARN above must clear.
 
 - `tests/identity.test.ts`: `renderLanding()`, `renderCapabilityReport()`, `JSON.stringify(CAPABILITY_REPORT)` and the server instructions (read with a real client over `InMemoryTransport`) contain none of `/unofficial/i`, `/not affiliated/i`, `/\bmock\b/i`, `/hellogrowth/i`, `/unreachable/i`. The landing page contains the lead text exactly once. The default user agent does not contain `your-org`.
 - The existing `tests/server.test.ts` capability and instructions tests must still pass unchanged.
