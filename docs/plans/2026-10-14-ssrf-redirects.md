@@ -8,6 +8,7 @@
 - `src/services/http-client.ts:109-120` fetches with `redirect: "follow"`, then re-checks `res.url` after the fact. By then the off-host hop has already been requested, so the check stops the server *returning* the content but not *fetching* it. That is a server-side request forgery (SSRF) gap: if any allowed page redirects to an internal or third-party address, the server fetches that address.
 - `src/services/http-client.ts:68` allows `host === "udaybooking.com" || host.endsWith(".udaybooking.com")`. That covers any subdomain, including ones that point at third-party infrastructure (`app.`, and future ones).
 - Only the final URL is checked. Intermediate hops are never checked against host, protocol or robots rules.
+- (Re-audit) **No response size cap.** `src/services/http-client.ts:146` reads `await res.text()` with no length guard, so one oversized or endless upstream response is buffered whole into memory. Skill §4 S2 requires a cap alongside the redirect re-check. The timeout (`requestTimeoutMs`, 15 s) is the only bound today.
 
 Measured: the existing tests pass on main (153/153). None of them covers redirects. The live site was not reachable from the sandbox, so its real redirect behaviour (apex ↔ www, trailing slash) was not observed.
 
@@ -27,6 +28,7 @@ Measured: the existing tests pass on main (153/153). None of them covers redirec
     current = resolveUrl(new URL(loc, current))   # host/protocol/robots check BEFORE fetching
   ```
 - `attempt()` calls it instead of `fetch(..., {redirect: "follow"})` and returns `finalUrl` as `url`. Retry, timeout and status mapping are unchanged. A `DISALLOWED_PATH` error from a hop is not retryable.
+- (Re-audit) **Body cap:** replace `res.text()` with a streamed read that stops at `UDAYBOOKING_MAX_RESPONSE_BYTES` (default 5 MB; reject early when `content-length` is larger) and throws `UPSTREAM_UNAVAILABLE` (not retryable). Test: a mock body above the cap is refused and the stream is cancelled.
 - `UDAYBOOKING_BASE_URL` stays configurable, but a mirror on another host would now be refused. Document that (or allow the base URL's own host explicitly if staging is needed).
 
 ## Tests to add
