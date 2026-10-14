@@ -30,6 +30,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { randomUUID } from "node:crypto";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 import { buildServer, createServices, SERVER_NAME, SERVER_VERSION } from "./server.js";
 import { SessionRegistry } from "./services/session-registry.js";
 import {
@@ -47,8 +48,8 @@ import { loadConfig } from "./config.js";
 import { createLogger } from "./utils/logger.js";
 
 const MCP_PATH = "/mcp";
-/** MCP revision this server implements, reported by /version and discovery. */
-const MCP_PROTOCOL_VERSION = "2025-06-18";
+/** MCP revision reported by /version and discovery: the installed SDK's latest. */
+const MCP_PROTOCOL_VERSION = LATEST_PROTOCOL_VERSION;
 /** Request bodies are tiny JSON-RPC frames; anything larger is refused. */
 const MAX_BODY_BYTES = 1_000_000;
 
@@ -169,6 +170,7 @@ async function main(): Promise<void> {
         protocolVersion: MCP_PROTOCOL_VERSION,
         transport: "streamable-http",
         endpoint: MCP_PATH,
+        mcp_endpoint: MCP_PATH,
         readOnly: true,
         requiresApiKey: false,
         upstream: config.baseUrl,
@@ -183,6 +185,8 @@ async function main(): Promise<void> {
     }
 
     if (url.pathname === "/.well-known/mcp.json") {
+      // Public, credential-free metadata: readable by browser-based inspectors.
+      res.setHeader("access-control-allow-origin", "*");
       sendJson(res, 200, {
         name: SERVER_NAME,
         version: SERVER_VERSION,
@@ -196,7 +200,9 @@ async function main(): Promise<void> {
         },
         authentication: { type: "none", note: "No API key is required; never send credentials." },
         capabilities: { tools: {}, resources: {} },
-        tools: TOOL_CATALOG.map((t) => ({ name: t.name, description: t.summary })),
+        // A count, not a second copy of the tool list: tools/list is the source
+        // of truth for names, so a hand-kept list here would only drift.
+        toolCount: TOOL_CATALOG.length,
         resources: ["udaybooking://capabilities", "udaybooking://llms.txt"],
         readOnly: true,
       });

@@ -49,7 +49,7 @@ const disco = await fetch(`${base}/.well-known/mcp.json`).then((r) => r.json());
 check("advertises streamable-http", disco.transport?.type === "streamable-http");
 check("advertises the /mcp url", String(disco.transport?.url).endsWith("/mcp"), disco.transport?.url);
 check("declares no auth", disco.authentication?.type === "none");
-check("lists the same 8 tools", disco.tools?.length === 8);
+check("reports the tool count, not a tool list", disco.toolCount === version.toolCount && disco.tools === undefined);
 check("lists both resources", disco.resources?.length === 2);
 
 // ---------------------------------------------------- browser landing page

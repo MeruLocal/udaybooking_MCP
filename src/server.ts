@@ -15,9 +15,12 @@ import {
 } from "./tools/site.js";
 import { LLMS_TXT_PATH, SITE_ORIGIN } from "./constants.js";
 import { renderCapabilityReport } from "./capabilities.js";
+import { TOOL_CATALOG } from "./tool-catalog.js";
+import { PACKAGE_VERSION } from "./version.js";
 
 export const SERVER_NAME = "udaybooking-mcp-server";
-export const SERVER_VERSION = "1.0.0";
+/** From package.json at runtime; never hand-edited here. */
+export const SERVER_VERSION = PACKAGE_VERSION;
 
 export interface BuiltServer {
   server: McpServer;
@@ -52,7 +55,7 @@ export function createServices(config: Config, logger: Logger): Services {
 /**
  * Builds the MCP server with every tool and resource registered.
  *
- * All eight tools are read-only. There is no state-changing tool because
+ * Every tool is read-only. There is no state-changing tool because
  * udaybooking.com exposes nothing to change — see `capabilities.ts` for the
  * recorded evidence behind that statement.
  *
@@ -105,7 +108,7 @@ export function buildServer(overrides?: Partial<Config>, shared?: Services): Bui
   logger.info("server built", {
     name: SERVER_NAME,
     version: SERVER_VERSION,
-    tools: 8,
+    tools: TOOL_CATALOG.length,
     baseUrl: config.baseUrl,
     sharedServices: shared !== undefined,
   });
