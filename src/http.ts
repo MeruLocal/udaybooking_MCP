@@ -30,6 +30,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { randomUUID } from "node:crypto";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 import { buildServer, createServices, SERVER_NAME, SERVER_VERSION } from "./server.js";
 import { SessionRegistry } from "./services/session-registry.js";
 import {
@@ -42,13 +43,13 @@ import {
 import { RateLimiter } from "./services/rate-limit.js";
 import { TOOL_CATALOG } from "./tool-catalog.js";
 import { CAPABILITY_REPORT } from "./capabilities.js";
-import { SITE_ORIGIN } from "./constants.js";
+import { renderLanding } from "./landing.js";
 import { loadConfig } from "./config.js";
 import { createLogger } from "./utils/logger.js";
 
 const MCP_PATH = "/mcp";
-/** MCP revision this server implements, reported by /version and discovery. */
-const MCP_PROTOCOL_VERSION = "2025-06-18";
+/** MCP revision reported by /version and discovery: the installed SDK's latest. */
+const MCP_PROTOCOL_VERSION = LATEST_PROTOCOL_VERSION;
 /** Request bodies are tiny JSON-RPC frames; anything larger is refused. */
 const MAX_BODY_BYTES = 1_000_000;
 
@@ -171,6 +172,7 @@ async function main(): Promise<void> {
         protocolVersion: MCP_PROTOCOL_VERSION,
         transport: "streamable-http",
         endpoint: MCP_PATH,
+        mcp_endpoint: MCP_PATH,
         readOnly: true,
         requiresApiKey: false,
         upstream: config.baseUrl,
@@ -185,12 +187,14 @@ async function main(): Promise<void> {
     }
 
     if (url.pathname === "/.well-known/mcp.json") {
+      // Public, credential-free metadata: readable by browser-based inspectors.
+      res.setHeader("access-control-allow-origin", "*");
       sendJson(res, 200, {
         name: SERVER_NAME,
         version: SERVER_VERSION,
         description:
-          "Read-only mirror of udaybooking.com public content: documentation, guides, help " +
-          "centre, pricing and FAQs. Performs no booking, account or payment actions.",
+          "Official Udaybooking MCP server: read-only access to udaybooking.com documentation, " +
+          "guides, help centre, pricing and FAQs. Performs no booking, account or payment actions.",
         protocolVersion: MCP_PROTOCOL_VERSION,
         transport: {
           type: "streamable-http",
@@ -198,7 +202,9 @@ async function main(): Promise<void> {
         },
         authentication: { type: "none", note: "No API key is required; never send credentials." },
         capabilities: { tools: {}, resources: {} },
-        tools: TOOL_CATALOG.map((t) => ({ name: t.name, description: t.summary })),
+        // A count, not a second copy of the tool list: tools/list is the source
+        // of truth for names, so a hand-kept list here would only drift.
+        toolCount: TOOL_CATALOG.length,
         resources: ["udaybooking://capabilities", "udaybooking://llms.txt"],
         readOnly: true,
       });
@@ -437,67 +443,9 @@ function headerBag(req: IncomingMessage) {
   };
 }
 
-/**
- * The page a person sees when they open the endpoint in a browser.
- *
- * Deliberately a plain document — one column, prose, inline monospace for paths,
- * default link colours — matching the house style used for other MCP server
- * landing pages in this estate (mcp.hellogrowthcrm.com). No cards, tables or
- * badges: the page exists to tell a human what this URL is and what it will not
- * do, not to look like an app.
- */
+/** Serves the landing page (see `landing.ts`). */
 function sendLanding(res: ServerResponse): void {
-  const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>udaybooking Website MCP Server</title>
-<meta name="robots" content="noindex">
-<style>
-  body {
-    max-width: 47rem; margin: 0 auto; padding: 4.5rem 1.5rem 6rem;
-    font: 17px/1.62 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: #111827;
-  }
-  h1 { font-size: 2.45rem; line-height: 1.2; font-weight: 700; margin: 0 0 1.75rem; letter-spacing: -0.01em; }
-  p { margin: 0 0 1.3rem; }
-  code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.86em;
-    background: #f3f4f6; border-radius: 4px; padding: 0.1em 0.35em;
-  }
-  p.fine, p.foot { color: #6b7280; font-size: 0.8rem; line-height: 1.55; }
-  p.foot { margin-top: 1.8rem; }
-</style></head>
-<body>
-  <h1>udaybooking Website MCP Server</h1>
-
-  <p>Read-only udaybooking website mirror (product knowledge: pricing, features, documentation,
-  guides, FAQs, company &amp; contact info) from
-  <a href="${SITE_ORIGIN}" rel="noopener noreferrer nofollow">udaybooking.com</a>. Connect via
-  the Streamable HTTP endpoint at <code>${MCP_PATH}</code>. No API key is required — this server
-  holds no customer data and performs no account, booking, or payment actions.</p>
-
-  <p>Status: <a href="/version">/version</a> · Discovery:
-  <a href="/.well-known/mcp.json">/.well-known/mcp.json</a> · Tools:
-  <code>POST ${MCP_PATH}</code> → <code>tools/list</code></p>
-
-  <p class="fine">This is not a customer booking or account API. It holds no customer data,
-  performs no transactions, and needs no API key — never send one here.</p>
-
-  <p>Read-only udaybooking website mirror (product knowledge: pricing, features, documentation,
-  guides, FAQs). No API key is required, and the public endpoint returns no personal data.
-  udaybooking publishes no documented public API and its product app is unreachable, so there is
-  no booking, availability, rescheduling, cancellation, or payment capability — those actions are
-  not implemented.</p>
-
-  <p>All ${TOOL_CATALOG.length} tools are public and read-only. There are no content-management,
-  write, or transactional tools, and none require an authenticated session. The server respects
-  <code>robots.txt</code> and never requests <code>/api/</code> or submits forms.</p>
-
-  <p>Status: <a href="/version">/version</a> · Health: <a href="/health">/health</a></p>
-
-  <p class="foot">${SERVER_NAME} v${SERVER_VERSION} · unofficial, not affiliated with udaybooking.</p>
-</body></html>`;
-
+  const html = renderLanding({ name: SERVER_NAME, version: SERVER_VERSION, mcpPath: MCP_PATH });
   const body = Buffer.from(html, "utf8");
   res.writeHead(200, {
     "content-type": "text/html; charset=utf-8",

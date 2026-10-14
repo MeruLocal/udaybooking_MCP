@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.merulocal/udaybooking",
+  "title": "Udaybooking",
+  "description": "Official Udaybooking MCP server: read-only access to udaybooking.com docs, guides, pricing and FAQs.",
+  "version": "1.0.0",
+  "repository": {
+    "url": "https://github.com/MeruLocal/udaybooking_MCP",
+    "source": "github"
+  },
+  "websiteUrl": "https://udaybooking.com",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.udaybooking.com/mcp"
+    }
+  ]
+}

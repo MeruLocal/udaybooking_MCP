@@ -36,7 +36,7 @@ export const TOOL_CATALOG: readonly ToolSummary[] = [
   },
   {
     name: "udaybooking_list_markets",
-    summary: "The seven country editions of the site, plus the international one.",
+    summary: "The country editions of the site, plus the international one.",
   },
   {
     name: "udaybooking_get_site_summary",

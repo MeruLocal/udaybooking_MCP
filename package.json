@@ -1,8 +1,16 @@
 {
   "name": "udaybooking-mcp-server",
   "version": "1.0.0",
-  "description": "MCP server exposing the public, robots-permitted content of udaybooking.com (docs, guides, pricing, FAQs) to Claude Desktop and Claude Code over stdio.",
+  "description": "Official Udaybooking MCP server: read-only access to udaybooking.com docs, guides, pricing and FAQs, over stdio or Streamable HTTP.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MeruLocal/udaybooking_MCP.git"
+  },
+  "homepage": "https://github.com/MeruLocal/udaybooking_MCP#readme",
+  "bugs": {
+    "url": "https://github.com/MeruLocal/udaybooking_MCP/issues"
+  },
   "type": "module",
   "engines": {
     "node": ">=20.10.0"
@@ -15,6 +23,7 @@
   "files": [
     "dist",
     "scripts",
+    "server.json",
     "README.md",
     ".env.example"
   ],
@@ -23,7 +32,8 @@
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "node scripts/check-versions.mjs && vitest run",
+    "check:versions": "node scripts/check-versions.mjs",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "inspect": "npm run build && npx @modelcontextprotocol/inspector node dist/index.js",

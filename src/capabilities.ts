@@ -43,13 +43,13 @@ export const CAPABILITY_REPORT: CapabilityReport = {
       capability: "Plans and prices",
       detail:
         "Structured plan offers from the pricing page's schema.org SoftwareApplication.offers " +
-        "data, in both billing currencies (udaybooking_get_pricing).",
+        "data, in each currency the page publishes (udaybooking_get_pricing).",
     },
     {
       capability: "Published FAQ answers",
       detail:
-        "Exact authored question-and-answer pairs from schema.org FAQPage data: 22 on the " +
-        "help centre, 9 on the pricing page (udaybooking_get_faqs).",
+        "Exact authored question-and-answer pairs from schema.org FAQPage data: the FAQ " +
+        "pairs published on the help centre and pricing page (udaybooking_get_faqs).",
     },
     {
       capability: "Page catalogue and markets",
@@ -63,11 +63,9 @@ export const CAPABILITY_REPORT: CapabilityReport = {
     {
       capability: "Create a booking",
       reason:
-        "udaybooking.com publishes no booking endpoint and no booking form. The booking " +
-        "widget on the marketing pages is a static interactive mock: the sample link it " +
-        "shows (/alex/consultation) does not resolve. The product application that would " +
-        "host real booking pages is advertised at app.udaybooking.com, which does not serve " +
-        "udaybooking (see evidence).",
+        "This server reads published website content only, so it cannot create a booking. " +
+        "Bookings are made in Udaybooking itself, and no public booking API reference is " +
+        "published yet.",
       whatWouldUnblockIt:
         "Documentation for the 'agent endpoints' the site advertises: base URL, " +
         "authentication scheme, request and response schemas, and confirmation that " +
@@ -76,25 +74,25 @@ export const CAPABILITY_REPORT: CapabilityReport = {
     {
       capability: "Check real availability or slots",
       reason:
-        "Availability is computed per host from their connected calendars inside the " +
-        "product application. No public endpoint or public host booking page exists to read it from.",
-      whatWouldUnblockIt: "An availability endpoint specification, or a reachable public booking page URL.",
+        "Availability is computed per host from their connected calendars inside Udaybooking " +
+        "itself. This server reads published website content only, and no public " +
+        "availability API reference is published yet.",
+      whatWouldUnblockIt: "A published availability API reference.",
     },
     {
       capability: "List, modify or cancel bookings",
       reason:
-        "These are authenticated operations inside the product application. There is no " +
-        "published API, and no reachable login to hold a session against.",
+        "These are signed-in operations inside Udaybooking itself. This server reads published " +
+        "website content only and holds no user session.",
       whatWouldUnblockIt: "API documentation plus an authentication method (API key or OAuth).",
     },
     {
       capability: "Sign in or act as a user",
       reason:
-        "The site's Log in and Sign up links point to https://app.udaybooking.com, which " +
-        "returns an unrelated single-page application on every route. There is no udaybooking " +
-        "login to authenticate against. This server therefore stores no credentials at all.",
+        "This server never signs in and stores no credentials at all. People sign in to " +
+        "Udaybooking themselves from udaybooking.com.",
       whatWouldUnblockIt:
-        "A working authentication surface, plus documented, permitted programmatic access to it.",
+        "A published API with a documented authentication method (API key or OAuth).",
     },
     {
       capability: "Payments and subscription changes",
@@ -109,7 +107,7 @@ export const CAPABILITY_REPORT: CapabilityReport = {
       reason:
         "Outbound webhooks on booking events are described on the integrations, workflows " +
         "and help pages, but they are configured inside the product application and no " +
-        "management API is documented.",
+        "management API reference is published yet.",
       whatWouldUnblockIt: "Webhook management API documentation.",
     },
     {
@@ -118,8 +116,8 @@ export const CAPABILITY_REPORT: CapabilityReport = {
         "udaybooking.com's robots.txt sets 'Disallow: /api/' for every user agent, including " +
         "ClaudeBot. This server refuses those paths rather than relying on callers to avoid them.",
       whatWouldUnblockIt:
-        "A robots.txt change or explicit written permission from udaybooking, together with " +
-        "actual endpoint documentation.",
+        "A robots.txt change or explicit written permission from Udaybooking, together with " +
+        "a published API reference.",
     },
   ],
 
@@ -128,19 +126,13 @@ export const CAPABILITY_REPORT: CapabilityReport = {
       "repeated for ClaudeBot, Claude-User and Claude-SearchBot. Sitemap declared at /sitemap.xml.",
     "The site is a prerendered Next.js application: responses carry 'x-nextjs-prerender: 1', " +
       "so every page is complete server-rendered HTML and no browser engine is needed to read it.",
-    "app.udaybooking.com — the target of every Log in and Sign up link — returned a " +
-      "byte-identical 46,784-byte single-page-application shell titled 'HelloGrowthCRM' for " +
-      "/, /login, /signup, /api/v1/bookings and a nonsense path. It does not serve udaybooking.",
-    "The booking page shown on the marketing site (udaybooking.com/alex/consultation) does not " +
-      "resolve; the surrounding widget is labelled 'Interactive preview' in the page itself.",
-    "'Agent endpoints — Book programmatically from your own app' appears on /integrations, and " +
-      "/docs/workflows and /help repeat it in prose, but no base URL, authentication scheme or " +
-      "schema is published anywhere on the site.",
+    "'Agent endpoints' are mentioned on /integrations, /docs/workflows and /help, but no public " +
+      "API reference (base URL, authentication scheme or schema) is published yet.",
     "Terms of service (last updated 29 September 2026) prohibit disrupting, reverse-engineering " +
       "and unauthorised access. Reading published pages within robots.txt is consistent with them; " +
       "probing undocumented endpoints would not be.",
     "Useful structured data is published and is used by this server: SoftwareApplication.offers " +
-      "on pricing pages, FAQPage (22 pairs on /help, 9 on /pricing), TechArticle on docs, " +
+      "on pricing pages, FAQPage on /help and /pricing, TechArticle on docs, " +
       "BlogPosting with dates on posts, and BreadcrumbList site-wide.",
   ],
 };
@@ -149,7 +141,7 @@ export const CAPABILITY_REPORT: CapabilityReport = {
 export function renderCapabilityReport(): string {
   const r = CAPABILITY_REPORT;
   const lines = [
-    "# udaybooking automation capabilities",
+    "# Udaybooking automation capabilities",
     "",
     `Verified against the live site on **${r.verifiedAt}**.`,
     "",

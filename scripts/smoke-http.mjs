@@ -49,7 +49,7 @@ const disco = await fetch(`${base}/.well-known/mcp.json`).then((r) => r.json());
 check("advertises streamable-http", disco.transport?.type === "streamable-http");
 check("advertises the /mcp url", String(disco.transport?.url).endsWith("/mcp"), disco.transport?.url);
 check("declares no auth", disco.authentication?.type === "none");
-check("lists the same 8 tools", disco.tools?.length === 8);
+check("reports the tool count, not a tool list", disco.toolCount === version.toolCount && disco.tools === undefined);
 check("lists both resources", disco.resources?.length === 2);
 
 // ---------------------------------------------------- browser landing page
@@ -67,11 +67,11 @@ check(
   "served as HTML",
   (landing.headers.get("content-type") ?? "").includes("text/html"),
 );
-check("titled in house style", landingHtml.includes("udaybooking Website MCP Server"));
+check("titled as the official server", landingHtml.includes("<title>Udaybooking MCP Server</title>"));
 check("links the mirrored site", landingHtml.includes("udaybooking.com</a>"));
-check("states the tool count", landingHtml.includes("All 8 tools are public and read-only"));
+check("states the tool count", landingHtml.includes(`All ${version.toolCount} tools are public and`));
 check("states robots.txt is respected", landingHtml.includes("respects") && landingHtml.includes("robots.txt"));
-check("carries the unaffiliated disclaimer", landingHtml.includes("unofficial, not affiliated with udaybooking"));
+check("carries the official footer", landingHtml.includes("official MCP server for Udaybooking."));
 check("warns against sending credentials", landingHtml.includes("never send one here"));
 check("links /version and /health", landingHtml.includes('href="/version"') && landingHtml.includes('href="/health"'));
 check("links discovery", landingHtml.includes(String.fromCharCode(34) + "/.well-known/mcp.json" + String.fromCharCode(34)));

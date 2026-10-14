@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { spawn, type ChildProcess } from "node:child_process";
 import { createServer, request } from "node:http";
 import { fileURLToPath } from "node:url";
+import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
 
 /**
  * End-to-end checks of the HTTP transport's hardening, against a real spawned
@@ -155,6 +156,21 @@ describe("HTTP transport hardening (spawned server)", () => {
     const r = await raw(limited.port, { path: "/version" });
     expect(Number(r.headers["retry-after"])).toBeGreaterThan(0);
     expect((await raw(limited.port, { path: "/health" })).status).toBe(200);
+  });
+
+  it("reports the SDK's latest protocol version and the MCP endpoint on /version", async () => {
+    const r = await raw(main.port, { path: "/version" });
+    const v = JSON.parse(r.body) as { protocolVersion: string; mcp_endpoint: string };
+    expect(v.protocolVersion).toBe(LATEST_PROTOCOL_VERSION);
+    expect(v.mcp_endpoint).toBe("/mcp");
+  });
+
+  it("serves the manifest with CORS and a tool count instead of a tool list", async () => {
+    const r = await raw(main.port, { path: "/.well-known/mcp.json" });
+    expect(r.headers["access-control-allow-origin"]).toBe("*");
+    const doc = JSON.parse(r.body) as { toolCount: number; tools?: unknown };
+    expect(doc.toolCount).toBeGreaterThan(0);
+    expect(doc.tools).toBeUndefined();
   });
 
   it("does not let a client escape the limit with a spoofed X-Forwarded-For", async () => {
