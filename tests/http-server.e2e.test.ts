@@ -3,6 +3,8 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { createServer, request } from "node:http";
 import { fileURLToPath } from "node:url";
 import { LATEST_PROTOCOL_VERSION } from "@modelcontextprotocol/sdk/types.js";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
 /**
  * End-to-end checks of the HTTP transport's hardening, against a real spawned
@@ -171,6 +173,25 @@ describe("HTTP transport hardening (spawned server)", () => {
     const doc = JSON.parse(r.body) as { toolCount: number; tools?: unknown };
     expect(doc.toolCount).toBeGreaterThan(0);
     expect(doc.tools).toBeUndefined();
+  });
+
+  it("reports usage counters (counts only) and freshness on /health", async () => {
+    // udaybooking_list_markets makes no upstream request, so this stays offline.
+    const client = new Client({ name: "e2e-client", version: "0" });
+    await client.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${main.port}/mcp`)));
+    await client.callTool({ name: "udaybooking_list_markets", arguments: {} });
+    await client.close();
+
+    const r = await raw(main.port, { path: "/health" });
+    const h = JSON.parse(r.body) as {
+      usage: Record<string, { calls: number; errors: number; p50_ms: number; p95_ms: number }>;
+      indexBuiltAt: unknown;
+      catalogLoadedAt: unknown;
+    };
+    expect(h.usage.udaybooking_list_markets).toMatchObject({ calls: 1, errors: 0 });
+    expect(r.body).not.toContain("e2e-client"); // counts only, no client names
+    expect(h.indexBuiltAt).toEqual({});
+    expect(h.catalogLoadedAt).toBeNull();
   });
 
   it("does not let a client escape the limit with a spoofed X-Forwarded-For", async () => {

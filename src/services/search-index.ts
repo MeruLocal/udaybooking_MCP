@@ -65,13 +65,29 @@ const STOPWORDS = new Set([
   "i", "my", "me", "it", "its", "this", "that", "from", "by", "as", "about",
 ]);
 
-export class SearchIndex {
-  private readonly indexes = new Map<string, Promise<MarketIndex>>();
+interface IndexSlot {
+  /** The index being served (resolved, or the first build in flight). */
+  current: Promise<MarketIndex>;
+  /** Set once `current` has resolved. */
+  builtAt?: number;
+  /** In-flight background rebuild, at most one per market. */
+  rebuilding?: Promise<void>;
+}
 
+export class SearchIndex {
+  private readonly indexes = new Map<string, IndexSlot>();
+
+  /**
+   * @param indexTtlMs Age after which a market's index is rebuilt in the
+   *   background while the old one keeps serving. `0` never expires it.
+   * @param now Injectable clock, for tests.
+   */
   constructor(
     private readonly site: SiteClient,
     private readonly logger: Logger,
     private readonly maxPages: number,
+    private readonly indexTtlMs = 0,
+    private readonly now: () => number = Date.now,
   ) {}
 
   /**
@@ -87,12 +103,17 @@ export class SearchIndex {
     market: string,
     sections: string[] | undefined,
     limit: number,
-  ): Promise<{ hits: SearchHit[]; indexedPages: number; failedPaths: string[] }> {
+  ): Promise<{ hits: SearchHit[]; indexedPages: number; failedPaths: string[]; builtAt: number }> {
     const index = await this.getIndex(market);
 
     const terms = tokenize(query);
     if (terms.length === 0) {
-      return { hits: [], indexedPages: index.pages.length, failedPaths: index.failedPaths };
+      return {
+        hits: [],
+        indexedPages: index.pages.length,
+        failedPaths: index.failedPaths,
+        builtAt: index.builtAt,
+      };
     }
 
     const wanted = sections && sections.length > 0 ? new Set(sections) : undefined;
@@ -137,6 +158,7 @@ export class SearchIndex {
       hits: scored.slice(0, limit),
       indexedPages: index.pages.length,
       failedPaths: index.failedPaths,
+      builtAt: index.builtAt,
     };
   }
 
@@ -145,16 +167,62 @@ export class SearchIndex {
     return [...this.indexes.keys()];
   }
 
-  private getIndex(market: string): Promise<MarketIndex> {
-    let existing = this.indexes.get(market);
-    if (!existing) {
-      existing = this.build(market).catch((error: unknown) => {
-        this.indexes.delete(market);
-        throw error;
-      });
-      this.indexes.set(market, existing);
+  /** When each market's served index was built (ISO), for /health. */
+  get indexBuiltAt(): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const [market, slot] of this.indexes) {
+      if (slot.builtAt !== undefined) out[market] = new Date(slot.builtAt).toISOString();
     }
-    return existing;
+    return out;
+  }
+
+  /** Resolves when no background rebuild is running (for tests). */
+  async settled(): Promise<void> {
+    await Promise.all([...this.indexes.values()].map((s) => s.rebuilding));
+  }
+
+  private getIndex(market: string): Promise<MarketIndex> {
+    const slot = this.indexes.get(market);
+    if (!slot) {
+      // `current` is assigned on the next line; the callbacks close over `fresh`.
+      const fresh = {} as IndexSlot;
+      fresh.current = this.build(market).then(
+        (index) => {
+          fresh.builtAt = index.builtAt;
+          return index;
+        },
+        (error: unknown) => {
+          this.indexes.delete(market);
+          throw error;
+        },
+      );
+      this.indexes.set(market, fresh);
+      return fresh.current;
+    }
+
+    const stale =
+      this.indexTtlMs > 0 &&
+      slot.builtAt !== undefined &&
+      this.now() - slot.builtAt > this.indexTtlMs;
+    if (stale && !slot.rebuilding) {
+      // Stale-while-revalidate: keep serving the old index; swap it in only
+      // once the new one has been built. A failed rebuild keeps the old one.
+      slot.rebuilding = this.build(market)
+        .then((index) => {
+          slot.current = Promise.resolve(index);
+          slot.builtAt = index.builtAt;
+        })
+        .catch((error: unknown) => {
+          this.logger.warn("search index rebuild failed; keeping the previous index", {
+            market,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        })
+        .finally(() => {
+          slot.rebuilding = undefined;
+        });
+    }
+    return slot.current;
   }
 
   private async build(market: string): Promise<MarketIndex> {
@@ -214,7 +282,7 @@ export class SearchIndex {
       ms: Date.now() - started,
     });
 
-    return { market, pages, failedPaths, builtAt: Date.now() };
+    return { market, pages, failedPaths, builtAt: this.now() };
   }
 }
 

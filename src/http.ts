@@ -222,6 +222,12 @@ async function main(): Promise<void> {
         sessionIdleTtlMs: config.httpSessionIdleTtlMs,
         cachedPages: services.site.stats().cachedPages,
         indexedMarkets: services.search.indexedMarkets,
+        catalogLoadedAt:
+          services.site.catalogLoadedAt !== undefined
+            ? new Date(services.site.catalogLoadedAt).toISOString()
+            : null,
+        indexBuiltAt: services.search.indexBuiltAt,
+        usage: services.usage.snapshot(),
         readOnly: true,
         upstream: config.baseUrl,
       });

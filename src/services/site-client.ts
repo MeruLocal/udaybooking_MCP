@@ -32,13 +32,23 @@ import {
 export class SiteClient {
   private readonly pageCache: TtlCache<PageDocument>;
   private readonly rawCache: TtlCache<string>;
+  /** In-flight first load (shared by concurrent callers). */
   private catalogPromise?: Promise<CatalogResult>;
+  /** The last complete catalogue and when it was loaded. */
+  private catalog?: { result: CatalogResult; loadedAt: number };
+  /** In-flight background refresh of a stale catalogue. */
+  private catalogRefresh?: Promise<void>;
+  private readonly catalogTtlMs: number;
+  private readonly now: () => number;
 
   constructor(
     private readonly http: HttpClient,
     config: Config,
     private readonly logger: Logger,
+    now: () => number = Date.now,
   ) {
+    this.catalogTtlMs = config.catalogTtlMs;
+    this.now = now;
     this.pageCache = new TtlCache<PageDocument>(config.cacheTtlMs, config.cacheMaxEntries);
     this.rawCache = new TtlCache<string>(config.cacheTtlMs, 32);
   }
@@ -48,9 +58,11 @@ export class SiteClient {
    * deduplicated by URL because the markets and resources sitemaps overlap on
    * some market paths.
    *
-   * A **complete** load is memoised for the process. A **partial** one (the
-   * origin drops connections intermittently) is returned but deliberately not
-   * memoised, so the next call retries the missing sitemaps. Without this, one
+   * A **complete** load is kept for `catalogTtlMs`; after that it is still
+   * served while a refresh runs in the background (stale-while-revalidate), and
+   * a failed or partial refresh keeps the old catalogue. A **partial** first
+   * load (the origin drops connections intermittently) is returned but
+   * deliberately not kept, so the next call retries the missing sitemaps. Without this, one
    * unlucky startup would leave the catalogue permanently missing a whole
    * sitemap's worth of pages and tools would report "no pages match" for paths
    * that do exist.
@@ -61,6 +73,10 @@ export class SiteClient {
 
   /** As `getCatalog`, but also reports which sitemaps failed. */
   async getCatalogResult(): Promise<CatalogResult> {
+    if (this.catalog) {
+      if (this.isStale(this.catalog.loadedAt)) this.refreshCatalogInBackground();
+      return this.catalog.result;
+    }
     if (this.catalogPromise) return this.catalogPromise;
 
     const pending = this.loadCatalog();
@@ -68,14 +84,49 @@ export class SiteClient {
 
     try {
       const result = await pending;
-      if (result.failures.length > 0) {
-        this.catalogPromise = undefined; // retry the gaps on the next call
+      if (result.failures.length === 0) {
+        this.catalog = { result, loadedAt: this.now() };
       }
-      return result;
-    } catch (error) {
+      return result; // a partial result is not kept: the next call retries the gaps
+    } finally {
       this.catalogPromise = undefined; // a transient drop must not poison the process
-      throw error;
     }
+  }
+
+  /** When the current complete catalogue was loaded, if there is one. */
+  get catalogLoadedAt(): number | undefined {
+    return this.catalog?.loadedAt;
+  }
+
+  /** Resolves when no background catalogue refresh is running (for tests). */
+  async settled(): Promise<void> {
+    await this.catalogRefresh;
+  }
+
+  private isStale(loadedAt: number): boolean {
+    return this.catalogTtlMs > 0 && this.now() - loadedAt > this.catalogTtlMs;
+  }
+
+  private refreshCatalogInBackground(): void {
+    if (this.catalogRefresh) return;
+    this.catalogRefresh = this.loadCatalog()
+      .then((result) => {
+        if (result.failures.length === 0) {
+          this.catalog = { result, loadedAt: this.now() };
+        } else {
+          this.logger.warn("catalogue refresh was partial; keeping the previous catalogue", {
+            failures: result.failures.length,
+          });
+        }
+      })
+      .catch((error: unknown) => {
+        this.logger.warn("catalogue refresh failed; keeping the previous catalogue", {
+          error: describeError(error),
+        });
+      })
+      .finally(() => {
+        this.catalogRefresh = undefined;
+      });
   }
 
   private async loadCatalog(): Promise<CatalogResult> {

@@ -101,3 +101,17 @@ describe("HTTP hardening defaults", () => {
     ]);
   });
 });
+
+describe("freshness and usage defaults", () => {
+  it("expires the catalogue and index after 6 hours by default; 0 keeps them forever", () => {
+    expect(loadConfig({}).catalogTtlMs).toBe(21_600_000);
+    expect(loadConfig({}).indexTtlMs).toBe(21_600_000);
+    expect(loadConfig({ UDAYBOOKING_CATALOG_TTL_MS: "0" }).catalogTtlMs).toBe(0);
+    expect(loadConfig({ UDAYBOOKING_INDEX_TTL_MS: "0" }).indexTtlMs).toBe(0);
+  });
+
+  it("logs tool usage by default, and UDAYBOOKING_USAGE_LOG=0 turns it off", () => {
+    expect(loadConfig({}).usageLog).toBe(true);
+    expect(loadConfig({ UDAYBOOKING_USAGE_LOG: "0" }).usageLog).toBe(false);
+  });
+});
