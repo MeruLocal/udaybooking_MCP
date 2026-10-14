@@ -94,3 +94,60 @@ export function decideOrigin(
   }
   return { allowed: false, reason: "not-allowed" };
 }
+
+/**
+ * The hostname part of a `Host` header, lower-cased, without the port.
+ *
+ * Returns `undefined` for anything that is not a bare host[:port] — userinfo,
+ * paths, queries and fragments are refused rather than parsed around, because a
+ * lenient parser is exactly what a Host-header trick relies on.
+ */
+export function hostnameOf(host: string | undefined): string | undefined {
+  if (host === undefined) return undefined;
+  const value = host.trim().toLowerCase();
+  if (value === "" || /[@/?#\s\\]/.test(value)) return undefined;
+
+  // Bracketed IPv6, optionally with a port.
+  const v6 = /^(\[[0-9a-f:.]+\])(?::(\d{1,5}))?$/.exec(value);
+  if (v6) return v6[1] ?? undefined;
+
+  const m = /^([a-z0-9.-]+)(?::(\d{1,5}))?$/.exec(value);
+  if (!m) return undefined;
+  return (m[1] ?? "").replace(/\.$/, "") || undefined;
+}
+
+/** True when the request's `Host` header names an allowlisted hostname exactly. */
+export function isAllowedHost(host: string | undefined, allowList: readonly string[]): boolean {
+  const name = hostnameOf(host);
+  if (name === undefined) return false;
+  return allowList.some((entry) => entry.toLowerCase() === name);
+}
+
+/**
+ * The client IP used as the rate-limit key.
+ *
+ * With `trustProxy`, the **right-most** `X-Forwarded-For` hop: that is the
+ * address the trusted proxy itself saw, which a client cannot forge (a client
+ * can only prepend entries to the left). Without it, the socket address, so a
+ * client cannot pick its own bucket by sending the header.
+ */
+export function clientIp(
+  remoteAddress: string | undefined,
+  xff: string | undefined,
+  trustProxy: boolean,
+): string {
+  if (trustProxy && xff) {
+    const hops = xff
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const last = hops[hops.length - 1];
+    if (last) return last;
+  }
+  return remoteAddress ?? "unknown";
+}
+
+/** True for a bind address that is only reachable from this machine. */
+export function isLoopbackBind(host: string): boolean {
+  return LOOPBACK_HOSTS.has(host.toLowerCase()) || host.startsWith("127.");
+}

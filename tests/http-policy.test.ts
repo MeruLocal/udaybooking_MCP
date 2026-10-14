@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  clientIp,
   decideOrigin,
+  hostnameOf,
+  isAllowedHost,
+  isLoopbackBind,
   isBrowserNavigation,
   isLoopbackOrigin,
 } from "../src/services/http-policy.js";
@@ -119,5 +123,62 @@ describe("decideOrigin", () => {
       allowed: false,
       reason: "not-allowed",
     });
+  });
+});
+
+describe("Host allowlist", () => {
+  const list = ["localhost", "127.0.0.1", "[::1]", "mcp.udaybooking.com"];
+
+  it("accepts allowlisted hosts with or without a port, any case", () => {
+    expect(isAllowedHost("mcp.udaybooking.com", list)).toBe(true);
+    expect(isAllowedHost("MCP.Udaybooking.com:443", list)).toBe(true);
+    expect(isAllowedHost("127.0.0.1:3004", list)).toBe(true);
+    expect(isAllowedHost("localhost", list)).toBe(true);
+    expect(isAllowedHost("[::1]:3004", list)).toBe(true);
+  });
+
+  it("refuses foreign hosts and suffix tricks", () => {
+    expect(isAllowedHost("evil.example", list)).toBe(false);
+    expect(isAllowedHost("mcp.udaybooking.com.evil.example", list)).toBe(false);
+    expect(isAllowedHost("evilmcp.udaybooking.com", list)).toBe(false);
+    expect(isAllowedHost(undefined, list)).toBe(false);
+    expect(isAllowedHost("", list)).toBe(false);
+  });
+
+  it("refuses userinfo, paths and queries rather than parsing around them", () => {
+    expect(hostnameOf("user@mcp.udaybooking.com")).toBeUndefined();
+    expect(isAllowedHost("evil.example@mcp.udaybooking.com", list)).toBe(false);
+    expect(isAllowedHost("mcp.udaybooking.com/x", list)).toBe(false);
+    expect(isAllowedHost("mcp.udaybooking.com?x", list)).toBe(false);
+  });
+
+  it("extracts the hostname", () => {
+    expect(hostnameOf("Example.COM:8080")).toBe("example.com");
+    expect(hostnameOf("[::1]:80")).toBe("[::1]");
+    expect(hostnameOf("example.com.")).toBe("example.com");
+  });
+});
+
+describe("clientIp", () => {
+  it("ignores X-Forwarded-For unless the proxy is trusted", () => {
+    expect(clientIp("10.0.0.1", "1.2.3.4", false)).toBe("10.0.0.1");
+  });
+
+  it("uses the right-most hop when trusted, which a client cannot forge", () => {
+    expect(clientIp("10.0.0.1", "6.6.6.6, 203.0.113.9", true)).toBe("203.0.113.9");
+    expect(clientIp("10.0.0.1", "203.0.113.9", true)).toBe("203.0.113.9");
+  });
+
+  it("falls back to the socket address", () => {
+    expect(clientIp("10.0.0.1", undefined, true)).toBe("10.0.0.1");
+    expect(clientIp(undefined, undefined, false)).toBe("unknown");
+  });
+});
+
+describe("isLoopbackBind", () => {
+  it("classifies bind addresses", () => {
+    expect(isLoopbackBind("127.0.0.1")).toBe(true);
+    expect(isLoopbackBind("localhost")).toBe(true);
+    expect(isLoopbackBind("0.0.0.0")).toBe(false);
   });
 });

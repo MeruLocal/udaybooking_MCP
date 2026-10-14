@@ -20,10 +20,11 @@
  * re-trigger the throttling this server is built to avoid.
  *
  * Security posture: there is no authentication, because the server exposes only
- * public, read-only content and holds no credentials. It still binds loopback by
- * default and validates `Origin` to prevent a web page from driving it through
- * the user's browser. Do not bind a public interface without putting auth in
- * front of it.
+ * public, read-only content and holds no credentials. It binds loopback by
+ * default, answers only allowlisted `Host` names (DNS-rebinding guard), rate
+ * limits each client IP, caps concurrent sessions, and validates `Origin` to
+ * prevent a web page from driving it through the user's browser. The discovery
+ * document's URL comes from `PUBLIC_BASE_URL`, never from forwarded headers.
  */
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
@@ -31,7 +32,14 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { buildServer, createServices, SERVER_NAME, SERVER_VERSION } from "./server.js";
 import { SessionRegistry } from "./services/session-registry.js";
-import { decideOrigin, isBrowserNavigation } from "./services/http-policy.js";
+import {
+  clientIp,
+  decideOrigin,
+  isAllowedHost,
+  isBrowserNavigation,
+  isLoopbackBind,
+} from "./services/http-policy.js";
+import { RateLimiter } from "./services/rate-limit.js";
 import { TOOL_CATALOG } from "./tool-catalog.js";
 import { CAPABILITY_REPORT } from "./capabilities.js";
 import { SITE_ORIGIN } from "./constants.js";
@@ -64,6 +72,7 @@ async function main(): Promise<void> {
   // One set of services for the whole process, shared by every session.
   const services = createServices(config, logger);
   const sessions = new SessionRegistry<Session>({ idleTtlMs: config.httpSessionIdleTtlMs });
+  const limiter = new RateLimiter({ limit: config.httpRateLimitPerMin });
 
   // Reap abandoned sessions. Clients are not obliged to send DELETE, and a
   // crashed one cannot, so without this the process holds an McpServer per
@@ -97,8 +106,36 @@ async function main(): Promise<void> {
   });
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+    // 1. Host allowlist: the DNS-rebinding guard for clients that send no Origin.
+    //    The reply is deliberately generic and does not echo the Host.
+    if (!isAllowedHost(header(req, "host"), config.httpAllowedHosts)) {
+      logger.warn("rejected request on disallowed host");
+      sendJson(res, 403, { error: "Forbidden" });
+      return;
+    }
 
+    const url = new URL(req.url ?? "/", "http://localhost");
+
+    // 2. Per-client rate limit, on every path except the liveness probe.
+    if (url.pathname !== "/health") {
+      const ip = clientIp(req.socket.remoteAddress, header(req, "x-forwarded-for"), config.trustProxy);
+      const decision = limiter.check(ip);
+      if (!decision.allowed) {
+        const body = JSON.stringify({
+          error: "Too many requests",
+          message: `Rate limit is ${config.httpRateLimitPerMin} requests per minute. Retry after ${decision.retryAfterSec}s.`,
+        });
+        res.writeHead(429, {
+          "content-type": "application/json",
+          "content-length": Buffer.byteLength(body),
+          "retry-after": String(decision.retryAfterSec),
+        });
+        res.end(body);
+        return;
+      }
+    }
+
+    // 3. Origin check.
     const origin = decideOrigin(header(req, "origin"), config.httpAllowedOrigins);
     if (!origin.allowed) {
       logger.warn("rejected request on disallowed origin", { origin: req.headers.origin });
@@ -155,7 +192,7 @@ async function main(): Promise<void> {
         protocolVersion: MCP_PROTOCOL_VERSION,
         transport: {
           type: "streamable-http",
-          url: `${publicBase(req, config.httpHost, config.httpPort)}${MCP_PATH}`,
+          url: `${publicBase(req, config.publicBaseUrl, config.httpHost, config.httpPort)}${MCP_PATH}`,
         },
         authentication: { type: "none", note: "No API key is required; never send credentials." },
         capabilities: { tools: {}, resources: {} },
@@ -273,6 +310,22 @@ async function main(): Promise<void> {
     res: ServerResponse,
     body: unknown,
   ): Promise<void> {
+    if (sessions.size >= config.httpMaxSessions) {
+      logger.warn("session cap reached", { sessions: sessions.size, max: config.httpMaxSessions });
+      const payload = JSON.stringify({
+        jsonrpc: "2.0",
+        error: { code: -32000, message: "Server is at its session limit. Retry shortly." },
+        id: null,
+      });
+      res.writeHead(503, {
+        "content-type": "application/json",
+        "content-length": Buffer.byteLength(payload),
+        "retry-after": "30",
+      });
+      res.end(payload);
+      return;
+    }
+
     // Each session gets its own McpServer (the SDK binds one transport per
     // server) but reuses the process-wide cache and search index. Built before
     // the transport so the session callbacks below close over a live value.
@@ -325,6 +378,14 @@ async function main(): Promise<void> {
     process.exit(1);
   });
 
+  if (!isLoopbackBind(config.httpHost) && !config.publicBaseUrl) {
+    logger.warn("PUBLIC_BASE_URL is not set on a non-loopback bind", {
+      hint:
+        "The discovery document will advertise http://<Host>. Behind Cloudflare/Apache set " +
+        "PUBLIC_BASE_URL=https://mcp.udaybooking.com (and TRUST_PROXY=1).",
+    });
+  }
+
   httpServer.listen(config.httpPort, config.httpHost, () => {
     logger.info("listening", {
       url: `http://${config.httpHost}:${config.httpPort}${MCP_PATH}`,
@@ -348,15 +409,20 @@ function header(req: IncomingMessage, name: string): string | undefined {
 /**
  * The externally reachable base URL, for the discovery document.
  *
- * Prefers the request's own `Host` header so the advertised URL is correct
- * behind a reverse proxy or when reached by LAN address, falling back to the
- * configured bind address.
+ * `PUBLIC_BASE_URL` when set. Otherwise the request's `Host`, which `handle()`
+ * has already checked against the allowlist, and finally the bind address.
+ * `X-Forwarded-*` is never read: any client can send it, and a caching proxy
+ * would then serve the attacker's URL to everyone.
  */
-function publicBase(req: IncomingMessage, host: string, port: number): string {
-  const forwardedProto = header(req, "x-forwarded-proto")?.split(",")[0]?.trim();
-  const hostHeader = header(req, "x-forwarded-host") ?? header(req, "host");
-  const scheme = forwardedProto ?? "http";
-  return hostHeader ? `${scheme}://${hostHeader}` : `http://${host}:${port}`;
+function publicBase(
+  req: IncomingMessage,
+  configured: string | undefined,
+  host: string,
+  port: number,
+): string {
+  if (configured) return configured;
+  const hostHeader = header(req, "host")?.trim().toLowerCase();
+  return hostHeader ? `http://${hostHeader}` : `http://${host}:${port}`;
 }
 
 /** The headers the policy functions in `http-policy.ts` need. */

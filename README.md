@@ -400,6 +400,26 @@ protections still apply, and you should understand both before changing them:
   through your browser. Requests with no `Origin` — every ordinary MCP client,
   and curl — pass through.
 
+For public hosting (for example `mcp.udaybooking.com` behind Cloudflare and
+Apache) four more guards apply:
+
+- **Host allowlist.** Only `Host` names in `UDAYBOOKING_HTTP_ALLOWED_HOSTS`
+  (default `localhost,127.0.0.1,[::1],mcp.udaybooking.com`) are answered; any
+  other gets a generic `403`.
+- **Rate limit.** `UDAYBOOKING_HTTP_RATE_LIMIT_PER_MIN` (default 60) per client
+  IP on every path except `/health`, answered with `429` + `Retry-After`. Set
+  `TRUST_PROXY=1` behind the proxy so the right-most `X-Forwarded-For` hop is the
+  key; otherwise all clients share the proxy's bucket.
+- **Session cap.** `UDAYBOOKING_HTTP_MAX_SESSIONS` (default 100); a further
+  `initialize` gets `503` + `Retry-After: 30`.
+- **Discovery URL.** `/.well-known/mcp.json` advertises `PUBLIC_BASE_URL`
+  (production: `https://mcp.udaybooking.com`) and never reads `X-Forwarded-*`.
+
+Upstream fetches are pinned to `udaybooking.com` and `www.udaybooking.com`
+exactly; redirects are followed one hop at a time and each hop is checked
+before it is requested; bodies above `UDAYBOOKING_MAX_RESPONSE_BYTES` (5 MB) are
+refused.
+
 Request bodies are capped at 1 MB, and unknown routes, bad JSON, stale session
 ids and unsupported methods all return specific, actionable errors rather than a
 bare 500.

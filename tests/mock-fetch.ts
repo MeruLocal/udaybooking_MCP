@@ -8,11 +8,21 @@ export interface MockOptions {
   flakyPaths?: Record<string, number>;
   /** Paths that never resolve, to exercise the timeout path. */
   hangingPaths?: string[];
+  /** Paths that answer with a redirect to the given Location (`null` = no header). */
+  redirects?: Record<string, string | null>;
+  /** Paths that stream the given number of bytes, without a content-length. */
+  oversized?: Record<string, number>;
+  /** Paths that declare the given content-length (body is tiny). */
+  declaredLength?: Record<string, number>;
 }
 
 export interface MockHandle {
   /** How many requests were made, by path. */
   calls: string[];
+  /** Every requested URL, in full (host included). */
+  urls: string[];
+  /** Paths whose streamed body was cancelled by the client. */
+  cancelled: string[];
   restore(): void;
 }
 
@@ -25,6 +35,8 @@ export interface MockHandle {
  */
 export function mockFetch(options: MockOptions = {}): MockHandle {
   const calls: string[] = [];
+  const urls: string[] = [];
+  const cancelled: string[] = [];
   const attempts = new Map<string, number>();
 
   const stub = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
@@ -32,6 +44,44 @@ export function mockFetch(options: MockOptions = {}): MockHandle {
     const url = new URL(raw);
     const path = url.pathname.replace(/\/+$/, "");
     calls.push(path || "/");
+    urls.push(url.toString());
+
+    if (url.hostname !== "udaybooking.com" && url.hostname !== "www.udaybooking.com") {
+      // Reaching here means the client let a request leave the allowed hosts.
+      return new Response("off-host", { status: 200, headers: { "content-type": "text/plain" } });
+    }
+
+    if (options.redirects && path in options.redirects) {
+      const location = options.redirects[path];
+      const headers = new Headers();
+      if (location !== null && location !== undefined) headers.set("location", location);
+      return new Response(null, { status: 302, headers });
+    }
+
+    const oversized = options.oversized?.[path];
+    if (oversized !== undefined) {
+      let sent = 0;
+      const chunk = new Uint8Array(64 * 1024).fill(97);
+      const stream = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          if (sent >= oversized) return controller.close();
+          sent += chunk.byteLength;
+          controller.enqueue(chunk);
+        },
+        cancel() {
+          cancelled.push(path);
+        },
+      });
+      return new Response(stream, { status: 200, headers: { "content-type": "text/html" } });
+    }
+
+    const declared = options.declaredLength?.[path];
+    if (declared !== undefined) {
+      return new Response("<p>x</p>", {
+        status: 200,
+        headers: { "content-type": "text/html", "content-length": String(declared) },
+      });
+    }
 
     if (options.hangingPaths?.includes(path)) {
       // Resolve only when the caller's AbortSignal fires, so the client's
@@ -86,6 +136,8 @@ export function mockFetch(options: MockOptions = {}): MockHandle {
 
   return {
     calls,
+    urls,
+    cancelled,
     restore() {
       globalThis.fetch = original;
     },
