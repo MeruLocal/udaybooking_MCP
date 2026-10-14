@@ -1,3 +1,4 @@
+import { withUtm } from "../utils/utm.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SiteClient } from "../services/site-client.js";
 import type { Logger } from "../utils/logger.js";
@@ -56,14 +57,14 @@ Error handling: this tool reads a fixed list enumerated from the site's markets 
             name: m.name,
             locale: m.locale,
             path_prefix: `/${m.code}`,
-            home_url: `${SITE_ORIGIN}/${m.code}`,
+            home_url: withUtm(`${SITE_ORIGIN}/${m.code}`, "udaybooking_list_markets"),
           })),
           {
             code: INTERNATIONAL,
             name: "International (unprefixed)",
             locale: "en",
             path_prefix: "",
-            home_url: SITE_ORIGIN,
+            home_url: withUtm(`${SITE_ORIGIN}/`, "udaybooking_list_markets"),
           },
         ];
 
@@ -143,7 +144,7 @@ Error handling: returns an actionable upstream error if /llms.txt cannot be fetc
         const body = clamp(raw, 20_000);
 
         const structured = {
-          source_url: `${SITE_ORIGIN}${LLMS_TXT_PATH}`,
+          source_url: withUtm(`${SITE_ORIGIN}${LLMS_TXT_PATH}`, "udaybooking_get_site_summary"),
           content: body.text,
           truncated: body.truncated,
         };

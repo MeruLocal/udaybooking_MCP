@@ -26,8 +26,16 @@ to Udaybooking's published documentation, guides, help centre, pricing and FAQs.
 | `udaybooking_list_markets` | The country editions of the site, plus the international one |
 | `udaybooking_get_site_summary` | The site's own `/llms.txt` summary |
 | `udaybooking_get_automation_capabilities` | What this server can and cannot do, and why |
+| `udaybooking_get_started` | Next steps to try or buy: pricing, and contact or demo pages when published |
 
 Resources: `udaybooking://capabilities` and `udaybooking://llms.txt`.
+
+Prompts: `compare_plans` (optional `market`) and `is_udaybooking_right_for_me`
+(`business`, optional `needs` and `market`). Both only chain the tools above.
+
+Own-site URLs in tool output carry
+`utm_source=mcp&utm_medium=ai_agent&utm_campaign=<tool>` so AI-referred traffic
+shows up in the site's analytics.
 
 ## Run
 

@@ -258,3 +258,24 @@ export const GetAutomationCapabilitiesOutput = {
   ),
   evidence: z.array(z.string()),
 };
+
+export const GetStartedInput = {
+  market: MarketEnum.default(INTERNATIONAL),
+  response_format: ResponseFormatEnum.default("markdown"),
+};
+
+export const GetStartedOutput = {
+  market: z.string(),
+  call_to_action: z.string(),
+  links: z
+    .array(
+      z.object({
+        kind: z.enum(["pricing", "contact", "demo"]),
+        title: z.string(),
+        url: z.string(),
+      }),
+    )
+    .describe("Next-step pages that exist on the site for this market, UTM-tagged."),
+  signup_note: z.string().describe("How to sign up; no signup URL is returned until one is confirmed."),
+  notes: z.array(z.string()),
+};

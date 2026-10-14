@@ -46,6 +46,10 @@ export const TOOL_CATALOG: readonly ToolSummary[] = [
     name: "udaybooking_get_automation_capabilities",
     summary: "What this server can and cannot do with udaybooking, and the evidence.",
   },
+  {
+    name: "udaybooking_get_started",
+    summary: "Where to go next to try or buy: pricing, and contact or demo pages when published.",
+  },
 ];
 
 export const TOOL_NAMES: readonly string[] = TOOL_CATALOG.map((t) => t.name);

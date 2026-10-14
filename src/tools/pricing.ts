@@ -1,3 +1,4 @@
+import { withUtm } from "../utils/utm.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SiteClient } from "../services/site-client.js";
 import type { Logger } from "../utils/logger.js";
@@ -102,7 +103,7 @@ Error handling:
 
       const structured = {
         market: args.market,
-        source_url: url,
+        source_url: withUtm(url, "udaybooking_get_pricing"),
         offers: selected.map((o) => ({
           plan: o.plan,
           price: o.price,
@@ -123,7 +124,7 @@ Error handling:
       const lines = [
         `# udaybooking pricing — ${args.market}`,
         "",
-        `Source: ${url}`,
+        `Source: ${withUtm(url, "udaybooking_get_pricing")}`,
         "",
       ];
 
