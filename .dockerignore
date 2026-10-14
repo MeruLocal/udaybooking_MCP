@@ -1,0 +1,44 @@
+# Dependencies and build output — reinstalled and rebuilt inside the image.
+node_modules
+dist
+build
+out
+*.tsbuildinfo
+
+# Version control and editor state
+.git
+.gitignore
+.vscode
+.idea
+
+# Secrets — must never enter the build context
+.env
+.env.*
+!.env.example
+*.pem
+
+# Logs and OS cruft
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+
+# Test and tooling output
+coverage
+.cache
+.tmp
+
+# Tests and dev-only scripts — the image runs dist/http.js and needs neither.
+# `npm run build` compiles src/ only, so excluding these does not break it.
+tests
+scripts
+vitest.config.ts
+
+# Repo documentation and working files — not needed at runtime
+README.md
+
+# Container files themselves
+Dockerfile
+.dockerignore
