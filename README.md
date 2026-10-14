@@ -90,7 +90,7 @@ common ones:
 | `UDAYBOOKING_HTTP_ALLOWED_HOSTS` | `localhost,127.0.0.1,[::1],mcp.udaybooking.com` | `Host` names answered |
 | `UDAYBOOKING_HTTP_RATE_LIMIT_PER_MIN` | `60` | Requests per minute per client IP (`0` disables) |
 | `UDAYBOOKING_HTTP_MAX_SESSIONS` | `100` | Concurrent HTTP sessions |
-| `TRUST_PROXY` | `0` | Use the right-most `X-Forwarded-For` hop as the client IP |
+| `TRUST_PROXY` | `0` | Number of trusted proxy hops; the client IP is the `X-Forwarded-For` entry that many places from the right (`0` = socket address) |
 | `PUBLIC_BASE_URL` | unset | URL advertised by discovery |
 
 ## Security
@@ -113,8 +113,9 @@ docker run --rm -p 127.0.0.1:3004:3004 udaybooking-mcp
 The image runs the HTTP transport as a non-root user and binds `0.0.0.0`
 inside the container. It needs outbound HTTPS to udaybooking.com. Behind
 Cloudflare and Apache, set `PUBLIC_BASE_URL=https://mcp.udaybooking.com` and
-`TRUST_PROXY=1`, and keep Apache's `ProxyPreserveHost On` so the `Host` header
-stays on the allowlist.
+`TRUST_PROXY=2` (or configure Apache `mod_remoteip` with Cloudflare's ranges and
+use `1`), and keep Apache's `ProxyPreserveHost On` so the `Host` header stays on
+the allowlist. `CF-Connecting-IP` is not trusted.
 
 ## Project layout
 

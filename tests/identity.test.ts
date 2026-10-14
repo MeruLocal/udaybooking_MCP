@@ -12,7 +12,15 @@ import { loadConfig } from "../src/config.js";
  * broken, or name another product.
  */
 
-const FORBIDDEN = [/unofficial/i, /not affiliated/i, /\bmock\b/i, /hellogrowth/i, /unreachable/i];
+// Extra brand names that must never appear come from the environment
+// (FORBIDDEN_BRANDS, comma-separated) so they are not written into this repo.
+const extraBrands = (process.env.FORBIDDEN_BRANDS ?? "")
+  .split(",")
+  .map((b) => b.trim())
+  .filter(Boolean)
+  .map((b) => new RegExp(b.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+
+const FORBIDDEN = [/unofficial/i, /not affiliated/i, /\bmock\b/i, /unreachable/i, ...extraBrands];
 
 async function instructions(): Promise<string> {
   const { server } = buildServer({ logLevel: "silent" });
