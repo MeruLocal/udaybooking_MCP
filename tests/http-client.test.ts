@@ -58,10 +58,28 @@ describe("HttpClient — host pinning", () => {
     }
   });
 
-  it("accepts the canonical host and its subdomains", () => {
+  it("accepts the canonical host and www, exactly", () => {
     const http = client();
     expect(http.resolveUrl("https://udaybooking.com/in")).toBe("https://udaybooking.com/in");
+    expect(http.resolveUrl("https://www.udaybooking.com/in")).toBe("https://www.udaybooking.com/in");
     expect(http.resolveUrl("/in/pricing")).toBe("https://udaybooking.com/in/pricing");
+  });
+
+  it("refuses other subdomains and suffix tricks", () => {
+    const http = client();
+    for (const url of [
+      "https://staging.udaybooking.com/",
+      "https://app.udaybooking.com/",
+      "https://udaybooking.com.evil.example/",
+      "https://eviludaybooking.com/",
+    ]) {
+      expect(() => http.resolveUrl(url)).toThrowError(/only reads udaybooking\.com/i);
+    }
+  });
+
+  it("allows the operator-configured base URL host (a staging mirror)", () => {
+    const http = client({ baseUrl: "https://mirror.example.test" });
+    expect(http.resolveUrl("/in")).toBe("https://mirror.example.test/in");
   });
 
   it("refuses non-http protocols", () => {
@@ -183,5 +201,79 @@ describe("HttpClient — politeness", () => {
     }
 
     expect(peak).toBeLessThanOrEqual(2);
+  });
+});
+
+describe("HttpClient — redirects are checked hop by hop", () => {
+  it("follows a same-host redirect and reports the final URL", async () => {
+    handle = mockFetch({ redirects: { "/old": "/in/pricing" } });
+    const res = await client().fetchText("/old");
+    expect(res.url).toBe("https://udaybooking.com/in/pricing");
+    expect(res.body.length).toBeGreaterThan(0);
+  });
+
+  it("follows apex <-> www redirects", async () => {
+    handle = mockFetch({ redirects: { "/hop": "https://www.udaybooking.com/in/pricing" } });
+    const res = await client().fetchText("/hop");
+    expect(res.url).toBe("https://www.udaybooking.com/in/pricing");
+  });
+
+  for (const target of [
+    "https://evil.example/",
+    "http://169.254.169.254/latest/meta-data/",
+    "https://app.udaybooking.com/",
+    "file:///etc/passwd",
+  ]) {
+    it(`refuses a redirect to ${target} without requesting it`, async () => {
+      handle = mockFetch({ redirects: { "/go": target } });
+      const error = await client().fetchText("/go").catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(UdayBookingError);
+      expect((error as UdayBookingError).code).toBe("DISALLOWED_PATH");
+      expect((error as UdayBookingError).retryable).toBe(false);
+      // The crucial assertion: the off-host hop was never fetched.
+      expect(handle.urls).toEqual(["https://udaybooking.com/go"]);
+    });
+  }
+
+  it("refuses a redirect into /api/ (robots.txt)", async () => {
+    handle = mockFetch({ redirects: { "/go": "/api/v1/bookings" } });
+    await expect(client().fetchText("/go")).rejects.toThrowError(/robots\.txt disallows/);
+    expect(handle.calls).toEqual(["/go"]);
+  });
+
+  it("gives a clear error on a redirect loop", async () => {
+    handle = mockFetch({ redirects: { "/a": "/b", "/b": "/a" } });
+    await expect(client().fetchText("/a")).rejects.toThrowError(/too many redirects/i);
+    expect(handle.calls.length).toBe(6);
+  });
+
+  it("gives a clear error on a redirect with no Location", async () => {
+    handle = mockFetch({ redirects: { "/nowhere": null } });
+    await expect(client().fetchText("/nowhere")).rejects.toThrowError(/no Location/);
+  });
+});
+
+describe("HttpClient — response size cap", () => {
+  it("refuses a streamed body above the cap and cancels the stream", async () => {
+    handle = mockFetch({ oversized: { "/huge": 2_000_000 } });
+    const error = await client({ maxResponseBytes: 100_000 })
+      .fetchText("/huge")
+      .catch((e: unknown) => e);
+    expect((error as UdayBookingError).code).toBe("UPSTREAM_UNAVAILABLE");
+    expect((error as UdayBookingError).message).toMatch(/larger than 100000 bytes/);
+    expect(handle.cancelled).toEqual(["/huge"]);
+    // Not retried: a second attempt would read the same oversized body.
+    expect(handle.calls).toEqual(["/huge"]);
+  });
+
+  it("refuses early when content-length declares more than the cap", async () => {
+    handle = mockFetch({ declaredLength: { "/big": 9_000_000 } });
+    await expect(client().fetchText("/big")).rejects.toThrowError(/larger than 5000000 bytes/);
+  });
+
+  it("reads a body under the cap normally", async () => {
+    handle = mockFetch({ oversized: { "/ok": 64 * 1024 } });
+    const res = await client({ maxResponseBytes: 100_000 }).fetchText("/ok");
+    expect(res.body.length).toBe(64 * 1024);
   });
 });

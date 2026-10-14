@@ -64,3 +64,40 @@ describe("politeness defaults", () => {
     );
   });
 });
+
+describe("HTTP hardening defaults", () => {
+  it("has a rate limit, session cap, host allowlist, and no proxy trust by default", () => {
+    const config = loadConfig({});
+    expect(config.httpRateLimitPerMin).toBe(60);
+    expect(config.httpMaxSessions).toBe(100);
+    expect(config.httpAllowedHosts).toEqual([
+      "localhost",
+      "127.0.0.1",
+      "[::1]",
+      "mcp.udaybooking.com",
+    ]);
+    expect(config.trustProxy).toBe(0);
+    expect(config.publicBaseUrl).toBeUndefined();
+    expect(config.maxResponseBytes).toBe(5_000_000);
+  });
+
+  it("treats an empty PUBLIC_BASE_URL as unset and strips a trailing slash", () => {
+    expect(loadConfig({ PUBLIC_BASE_URL: "" }).publicBaseUrl).toBeUndefined();
+    expect(loadConfig({ PUBLIC_BASE_URL: "https://mcp.udaybooking.com/" }).publicBaseUrl).toBe(
+      "https://mcp.udaybooking.com",
+    );
+    expect(() => loadConfig({ PUBLIC_BASE_URL: "not a url" })).toThrowError(/publicBaseUrl/);
+  });
+
+  it("parses TRUST_PROXY, the rate limit (0 disables) and the host list", () => {
+    expect(loadConfig({ TRUST_PROXY: "1" }).trustProxy).toBe(1);
+    expect(loadConfig({ TRUST_PROXY: "true" }).trustProxy).toBe(1);
+    expect(loadConfig({ TRUST_PROXY: "2" }).trustProxy).toBe(2);
+    expect(loadConfig({ TRUST_PROXY: "false" }).trustProxy).toBe(0);
+    expect(loadConfig({ UDAYBOOKING_HTTP_RATE_LIMIT_PER_MIN: "0" }).httpRateLimitPerMin).toBe(0);
+    expect(loadConfig({ UDAYBOOKING_HTTP_ALLOWED_HOSTS: " A.example , b.example " }).httpAllowedHosts).toEqual([
+      "a.example",
+      "b.example",
+    ]);
+  });
+});
