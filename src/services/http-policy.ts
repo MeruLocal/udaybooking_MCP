@@ -126,23 +126,27 @@ export function isAllowedHost(host: string | undefined, allowList: readonly stri
 /**
  * The client IP used as the rate-limit key.
  *
- * With `trustProxy`, the **right-most** `X-Forwarded-For` hop: that is the
- * address the trusted proxy itself saw, which a client cannot forge (a client
- * can only prepend entries to the left). Without it, the socket address, so a
- * client cannot pick its own bucket by sending the header.
+ * `trustProxyHops` is the number of trusted proxies in front of this server
+ * (`TRUST_PROXY`). The client is the `X-Forwarded-For` entry at position
+ * `len - hops` counted from the right (1-based), because each trusted proxy
+ * appends the address it saw and a client can only prepend entries on the left.
+ * With 0 hops, or a header shorter than the hop count, the socket address is
+ * used, so a client cannot pick its own bucket. `CF-Connecting-IP` is never
+ * trusted.
  */
 export function clientIp(
   remoteAddress: string | undefined,
   xff: string | undefined,
-  trustProxy: boolean,
+  trustProxyHops: number,
 ): string {
-  if (trustProxy && xff) {
+  if (trustProxyHops > 0 && xff) {
     const hops = xff
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
-    const last = hops[hops.length - 1];
-    if (last) return last;
+    const idx = hops.length - trustProxyHops;
+    const hop = idx >= 0 ? hops[idx] : undefined;
+    if (hop) return hop;
   }
   return remoteAddress ?? "unknown";
 }

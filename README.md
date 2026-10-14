@@ -407,9 +407,13 @@ Apache) four more guards apply:
   (default `localhost,127.0.0.1,[::1],mcp.udaybooking.com`) are answered; any
   other gets a generic `403`.
 - **Rate limit.** `UDAYBOOKING_HTTP_RATE_LIMIT_PER_MIN` (default 60) per client
-  IP on every path except `/health`, answered with `429` + `Retry-After`. Set
-  `TRUST_PROXY=1` behind the proxy so the right-most `X-Forwarded-For` hop is the
-  key; otherwise all clients share the proxy's bucket.
+  IP on every path except `/health`, answered with `429` + `Retry-After`. `TRUST_PROXY`
+  is the number of trusted proxy hops (0 = use the socket address): the client is
+  the `X-Forwarded-For` entry that many places from the right, falling back to the
+  socket address when the header is shorter. Behind Cloudflare then Apache use
+  `TRUST_PROXY=2`, or configure Apache `mod_remoteip` with Cloudflare's ranges and
+  use `1`. `CF-Connecting-IP` is not trusted. Otherwise all clients share the
+  proxy's bucket.
 - **Session cap.** `UDAYBOOKING_HTTP_MAX_SESSIONS` (default 100); a further
   `initialize` gets `503` + `Retry-After: 30`.
 - **Discovery URL.** `/.well-known/mcp.json` advertises `PUBLIC_BASE_URL`

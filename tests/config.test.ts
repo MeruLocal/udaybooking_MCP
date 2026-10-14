@@ -76,7 +76,7 @@ describe("HTTP hardening defaults", () => {
       "[::1]",
       "mcp.udaybooking.com",
     ]);
-    expect(config.trustProxy).toBe(false);
+    expect(config.trustProxy).toBe(0);
     expect(config.publicBaseUrl).toBeUndefined();
     expect(config.maxResponseBytes).toBe(5_000_000);
   });
@@ -90,7 +90,10 @@ describe("HTTP hardening defaults", () => {
   });
 
   it("parses TRUST_PROXY, the rate limit (0 disables) and the host list", () => {
-    expect(loadConfig({ TRUST_PROXY: "1" }).trustProxy).toBe(true);
+    expect(loadConfig({ TRUST_PROXY: "1" }).trustProxy).toBe(1);
+    expect(loadConfig({ TRUST_PROXY: "true" }).trustProxy).toBe(1);
+    expect(loadConfig({ TRUST_PROXY: "2" }).trustProxy).toBe(2);
+    expect(loadConfig({ TRUST_PROXY: "false" }).trustProxy).toBe(0);
     expect(loadConfig({ UDAYBOOKING_HTTP_RATE_LIMIT_PER_MIN: "0" }).httpRateLimitPerMin).toBe(0);
     expect(loadConfig({ UDAYBOOKING_HTTP_ALLOWED_HOSTS: " A.example , b.example " }).httpAllowedHosts).toEqual([
       "a.example",
