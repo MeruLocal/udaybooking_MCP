@@ -60,10 +60,19 @@ ENV NODE_ENV=production
 # container this server binds loopback ON PURPOSE, because it has no
 # authentication. Here, reachability is controlled by what you publish
 # (`-p 127.0.0.1:3004:3004` keeps it on your machine) and by the network the
-# container joins — NOT by the bind address. Publishing this port on a public
-# interface lets anyone reach it fetch udaybooking.com through your host.
+# container joins — NOT by the bind address. Publishing the port on a public
+# interface lets anyone who reaches it fetch udaybooking.com through your host.
 ENV UDAYBOOKING_HTTP_HOST=0.0.0.0
-ENV UDAYBOOKING_HTTP_PORT=3004
+
+# The port is deliberately NOT set here.
+#
+# config.ts resolves it as UDAYBOOKING_HTTP_PORT ?? PORT ?? 3004. Baking
+# UDAYBOOKING_HTTP_PORT into the image set the first of those on every
+# container, so `-e PORT=3020` was silently ignored and the server always bound
+# 3004 — the orchestrator's port mapping then pointed at nothing.
+#
+# With it unset: no env = 3004, `-e PORT=3020` = 3020, and
+# `-e UDAYBOOKING_HTTP_PORT=...` still wins when someone wants to be explicit.
 
 # Politeness settings. The defaults are already conservative; they are repeated
 # here so the operating values are visible in `docker inspect` rather than
@@ -86,12 +95,19 @@ COPY --chown=mcp:nodejs package.json ./
 
 USER mcp
 
+# Documentation only: EXPOSE is metadata and cannot be computed from the
+# runtime environment. It names the default; when PORT is set, the server binds
+# that instead and you publish that instead.
 EXPOSE 3004
 
 # Container-level health signal. /health needs no session and makes no outbound
 # request, so it answers even while udaybooking.com is unreachable — it reports
 # that this process is alive, not that the upstream is.
+#
+# The port is resolved the same way config.ts resolves it. Hardcoding 3004 here
+# would fail every health check as soon as PORT moved the listener, and the
+# container would be restarted in a loop while serving correctly.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:3004/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "const p=process.env.UDAYBOOKING_HTTP_PORT||process.env.PORT||3004;fetch('http://127.0.0.1:'+p+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "dist/http.js"]
