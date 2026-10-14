@@ -4,7 +4,7 @@ import type { SearchIndex } from "../services/search-index.js";
 import type { Logger } from "../utils/logger.js";
 import { SearchContentInput, SearchContentOutput } from "../schemas/index.js";
 import { INDEXED_SECTIONS } from "../services/search-index.js";
-import { bullets, guard, ok } from "./helpers.js";
+import { bullets, CONTENT_SOURCE, guard, ok, untrustedHeader } from "./helpers.js";
 
 interface Args {
   query: string;
@@ -75,6 +75,7 @@ Error handling:
         count: hits.length,
         indexed_pages: indexedPages,
         indexed_at: new Date(builtAt).toISOString(),
+        content_source: CONTENT_SOURCE,
         results: hits.map((h) => ({
           title: h.title,
           url: withUtm(h.url, "udaybooking_search_content"),
@@ -114,6 +115,9 @@ Error handling:
             ["Score", hit.score],
           ]),
         );
+        if (hit.snippets.length > 0) {
+          lines.push(untrustedHeader(withUtm(hit.url, "udaybooking_search_content")));
+        }
         for (const snippet of hit.snippets) lines.push(`> ${snippet}`);
         lines.push(`Read in full: \`udaybooking_get_page\` with path \`${hit.path}\``);
         lines.push("");

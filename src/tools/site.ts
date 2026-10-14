@@ -14,7 +14,7 @@ import { INTERNATIONAL, LLMS_TXT_PATH, MARKETS, SITE_ORIGIN } from "../constants
 import { CAPABILITY_REPORT, renderCapabilityReport } from "../capabilities.js";
 
 const MARKET_NAMES = MARKETS.map((m) => m.name).join(", ");
-import { clamp, guard, ok } from "./helpers.js";
+import { clamp, CONTENT_SOURCE, guard, ok, untrustedHeader } from "./helpers.js";
 
 /** Registers `udaybooking_list_markets`. */
 export function registerMarketsTool(server: McpServer, logger: Logger): void {
@@ -143,16 +143,18 @@ Error handling: returns an actionable upstream error if /llms.txt cannot be fetc
         const raw = await site.getLlmsTxt();
         const body = clamp(raw, 20_000);
 
+        const sourceUrl = withUtm(`${SITE_ORIGIN}${LLMS_TXT_PATH}`, "udaybooking_get_site_summary");
         const structured = {
-          source_url: withUtm(`${SITE_ORIGIN}${LLMS_TXT_PATH}`, "udaybooking_get_site_summary"),
+          source_url: sourceUrl,
           content: body.text,
+          content_source: CONTENT_SOURCE,
           truncated: body.truncated,
         };
 
         if (args.response_format === "json") {
           return ok(JSON.stringify(structured, null, 2), structured);
         }
-        return ok(body.text, structured);
+        return ok(`${untrustedHeader(sourceUrl)}\n\n${body.text}`, structured);
       },
     ),
   );

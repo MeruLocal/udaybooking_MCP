@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SiteClient } from "../services/site-client.js";
 import type { Logger } from "../utils/logger.js";
 import { GetFaqsInput, GetFaqsOutput } from "../schemas/index.js";
-import { guard, marketUrl, ok } from "./helpers.js";
+import { CONTENT_SOURCE, guard, marketUrl, ok, untrustedHeader } from "./helpers.js";
 import { tokenize } from "../services/search-index.js";
 
 interface Args {
@@ -86,6 +86,7 @@ Error handling:
         market: args.market,
         count: window.length,
         total_available: all.length,
+        content_source: CONTENT_SOURCE,
         faqs: window.map((f) => ({ question: f.question, answer: f.answer })),
       };
 
@@ -105,6 +106,8 @@ Error handling:
         `# udaybooking ${args.source} FAQ`,
         "",
         `Source: ${withUtm(url, "udaybooking_get_faqs")} · showing ${window.length} of ${all.length} published pairs.`,
+        "",
+        untrustedHeader(withUtm(url, "udaybooking_get_faqs")),
         "",
       ];
       for (const f of window) {

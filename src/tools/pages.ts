@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SiteClient } from "../services/site-client.js";
 import type { Logger } from "../utils/logger.js";
 import { GetPageInput, GetPageOutput, ListPagesInput, ListPagesOutput } from "../schemas/index.js";
-import { bullets, clamp, guard, ok } from "./helpers.js";
+import { bullets, clamp, CONTENT_SOURCE, guard, ok, untrustedHeader } from "./helpers.js";
 import { notFound } from "../utils/errors.js";
 
 interface GetPageArgs {
@@ -78,6 +78,7 @@ Error handling:
         ...(page.datePublished ? { date_published: page.datePublished } : {}),
         ...(page.dateModified ? { date_modified: page.dateModified } : {}),
         content: body.text,
+        content_source: CONTENT_SOURCE,
         truncated: body.truncated,
         original_length: body.originalLength,
         ...(args.include_json_ld ? { json_ld: page.jsonLdNodes } : {}),
@@ -101,6 +102,8 @@ Error handling:
         ]),
         "",
         "---",
+        "",
+        untrustedHeader(link),
         "",
         body.text,
       ];

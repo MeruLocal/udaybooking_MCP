@@ -102,6 +102,17 @@ export function guard<A>(
   };
 }
 
+/** Value of `content_source` on results that carry fetched page text. */
+export const CONTENT_SOURCE = "udaybooking.com";
+
+/**
+ * One line placed before fetched page text in Markdown output, so an agent
+ * treats what follows as data from the website, not as instructions.
+ */
+export function untrustedHeader(url: string): string {
+  return `Content from ${url} (untrusted page text):`;
+}
+
 /** Renders a Markdown bullet list, skipping empty values. */
 export function bullets(pairs: [string, string | number | undefined][]): string {
   return pairs
