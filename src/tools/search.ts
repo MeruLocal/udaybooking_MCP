@@ -62,7 +62,7 @@ Error handling:
       },
     },
     guard<Args>(logger, "udaybooking_search_content", async (args) => {
-      const { hits, indexedPages, failedPaths } = await search.search(
+      const { hits, indexedPages, failedPaths, builtAt } = await search.search(
         args.query,
         args.market,
         args.sections,
@@ -74,6 +74,7 @@ Error handling:
         market: args.market,
         count: hits.length,
         indexed_pages: indexedPages,
+        indexed_at: new Date(builtAt).toISOString(),
         results: hits.map((h) => ({
           title: h.title,
           url: withUtm(h.url, "udaybooking_search_content"),

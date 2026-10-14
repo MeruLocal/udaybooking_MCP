@@ -150,6 +150,7 @@ export const SearchContentOutput = {
   market: z.string(),
   count: z.number().int(),
   indexed_pages: z.number().int().describe("Pages in the index that was searched."),
+  indexed_at: z.string().describe("When the searched index was built (ISO 8601)."),
   results: z.array(
     z.object({
       title: z.string(),

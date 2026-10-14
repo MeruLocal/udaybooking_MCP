@@ -55,6 +55,27 @@ const ConfigSchema = z.object({
   indexMaxPages: z.coerce.number().int().min(5).max(200).default(40),
 
   /**
+   * How long a complete page catalogue (the sitemaps) is served before it is
+   * refreshed in the background, in milliseconds. `0` never expires it.
+   */
+  catalogTtlMs: z.coerce.number().int().min(0).max(604_800_000).default(21_600_000),
+
+  /**
+   * How long a market's search index is served before it is rebuilt in the
+   * background, in milliseconds. `0` never expires it.
+   */
+  indexTtlMs: z.coerce.number().int().min(0).max(604_800_000).default(21_600_000),
+
+  /**
+   * One `info` log line per tool call (tool, outcome, latency, error code,
+   * client name; never arguments). `0` turns it off.
+   */
+  usageLog: z
+    .enum(["0", "1", "true", "false"])
+    .default("1")
+    .transform((v) => v === "1" || v === "true"),
+
+  /**
    * Identifies this client to the origin, with a contact URL, as a well-behaved
    * crawler should.
    */
@@ -174,6 +195,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     cacheMaxEntries: env.UDAYBOOKING_CACHE_MAX_ENTRIES,
     maxConcurrency: env.UDAYBOOKING_MAX_CONCURRENCY,
     indexMaxPages: env.UDAYBOOKING_INDEX_MAX_PAGES,
+    catalogTtlMs: env.UDAYBOOKING_CATALOG_TTL_MS,
+    indexTtlMs: env.UDAYBOOKING_INDEX_TTL_MS,
+    usageLog: env.UDAYBOOKING_USAGE_LOG,
     userAgent: env.UDAYBOOKING_USER_AGENT,
     maxResponseBytes: env.UDAYBOOKING_MAX_RESPONSE_BYTES,
     logLevel: env.UDAYBOOKING_LOG_LEVEL,

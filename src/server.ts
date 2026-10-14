@@ -50,7 +50,7 @@ export interface Services {
 export function createServices(config: Config, logger: Logger): Services {
   const http = new HttpClient(config, logger);
   const site = new SiteClient(http, config, logger);
-  const search = new SearchIndex(site, logger, config.indexMaxPages);
+  const search = new SearchIndex(site, logger, config.indexMaxPages, config.indexTtlMs);
   return { http, site, search };
 }
 
