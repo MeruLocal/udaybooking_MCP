@@ -105,6 +105,13 @@ export class HttpClient {
       );
     }
 
+    // Tracking parameters (including ones this server added to links it handed
+    // out) never change page content; drop them so they are neither sent
+    // upstream nor split the cache.
+    for (const key of [...url.searchParams.keys()]) {
+      if (key.toLowerCase().startsWith("utm_")) url.searchParams.delete(key);
+    }
+
     return url.toString();
   }
 

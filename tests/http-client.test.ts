@@ -50,6 +50,22 @@ describe("HttpClient — robots.txt compliance", () => {
   });
 });
 
+describe("HttpClient — tracking parameters", () => {
+  it("strips utm_* before resolving, keeping other query parameters", () => {
+    const http = client();
+    expect(
+      http.resolveUrl("https://udaybooking.com/in/pricing?utm_source=mcp&utm_medium=ai_agent&utm_campaign=x"),
+    ).toBe("https://udaybooking.com/in/pricing");
+    expect(http.resolveUrl("/in/pricing?a=1&UTM_Source=mcp&b=2")).toBe("https://udaybooking.com/in/pricing?a=1&b=2");
+  });
+
+  it("does not request or cache a utm-tagged URL", async () => {
+    handle = mockFetch();
+    await client().fetchText("https://udaybooking.com/in/pricing?utm_source=mcp&utm_campaign=x");
+    expect(handle.urls).toEqual(["https://udaybooking.com/in/pricing"]);
+  });
+});
+
 describe("HttpClient — host pinning", () => {
   it("refuses hosts other than udaybooking.com", () => {
     const http = client();
