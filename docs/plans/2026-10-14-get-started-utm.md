@@ -8,6 +8,7 @@
 - No tool turns an interested agent conversation into a next step. The eight tools (`src/tool-catalog.ts`) return content, but nothing returns "here is where to sign up, book a demo, see pricing".
 - Own-site URLs returned by tools are untagged: for example `source_url` in `src/tools/pricing.ts:63`, `home_url` in `src/tools/site.ts:57,64`, and `url` in search, page and list results. Traffic from AI agents is therefore invisible in the site's analytics.
 - URLs the repo already knows: `/<market>/pricing` (`marketUrl`, `src/tools/helpers.ts:27`), `/help`, the market homes, and `/llms.txt`. `site-client.ts:285` classifies `contact` and `demo` path heads, so those pages are expected in the sitemaps, but this was not confirmed against the live sitemap (the sandbox cannot reach the site).
+- Measured (re-audit): `audit-live-mcp.mjs` (new script, 2026-10-14, local scratch build of main at 5b98fb1, `/mcp`, `--forbid-brands HelloGrowthCRM,hellocrm --sample-tool udaybooking_get_automation_capabilities`) gave **6 fail · 7 warn · 31 pass**. The earlier baseline (old script) was 2 fail · 3 warn · 15 pass. WARN `X.conversion_tool` (no get_started / demo / contact tool) and WARN `X.utm` (0/1 URLs in the sample output carry UTM) belong to this plan.
 - The signup links on the site point to app.udaybooking.com, which has a known website issue (see the identity plan). Do not hard-code it until the founder confirms it.
 
 ## Proposed fix
