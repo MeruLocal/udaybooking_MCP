@@ -52,7 +52,7 @@ const ConfigSchema = z.object({
    * Maximum pages fetched when warming one market's search index. Bounds both
    * first-call latency and load on the origin.
    */
-  indexMaxPages: z.coerce.number().int().min(5).max(200).default(40),
+  indexMaxPages: z.coerce.number().int().min(5).max(200).default(80),
 
   /**
    * How long a complete page catalogue (the sitemaps) is served before it is

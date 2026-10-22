@@ -87,6 +87,7 @@ export const SECTIONS = [
   "integrations",
   "security",
   "how-it-works",
+  "landing",
   "company",
   "legal",
 ] as const;

@@ -135,7 +135,7 @@ Use this to discover what exists before fetching anything, to find the exact pat
 
 Args:
   - market ('in' | 'us' | 'gb' | 'au' | 'nz' | 'sg' | 'ae' | 'international'): filter to one edition. Omit for all.
-  - section (string): filter to one section — home, product, solutions, docs, guides, blog, help, resources, pricing, integrations, security, how-it-works, company, legal. Omit for all.
+  - section (string): filter to one section — home, product, solutions, docs, guides, blog, help, resources, pricing, integrations, security, how-it-works, landing (top-level use-case and comparison pages such as /calendly-alternative or /round-robin-scheduling), company, legal. Omit for all.
   - limit (number): maximum entries, 1-200 (default: 60)
   - offset (number): entries to skip, for pagination (default: 0)
   - response_format ('markdown' | 'json'): output shape (default: 'markdown')

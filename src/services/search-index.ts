@@ -47,6 +47,7 @@ const DEFAULT_SECTIONS = [
   "guides",
   "help",
   "pricing",
+  "landing",
   "product",
   "how-it-works",
   "integrations",

@@ -186,7 +186,7 @@ async function main(): Promise<void> {
       return;
     }
 
-    if (url.pathname === "/.well-known/mcp.json") {
+    if (url.pathname === "/.well-known/mcp.json" || url.pathname === "/.well-known/mcp/server-card.json") {
       // Public, credential-free metadata: readable by browser-based inspectors.
       res.setHeader("access-control-allow-origin", "*");
       sendJson(res, 200, {
@@ -208,6 +208,32 @@ async function main(): Promise<void> {
         resources: ["udaybooking://capabilities", "udaybooking://llms.txt"],
         readOnly: true,
       });
+      return;
+    }
+
+    if (url.pathname === "/robots.txt" || url.pathname === "/llms.txt") {
+      const base = publicBase(req, config.publicBaseUrl, config.httpHost, config.httpPort);
+      const text =
+        url.pathname === "/robots.txt"
+          ? "User-agent: *\nAllow: /\n"
+          : [
+              "# Udaybooking MCP Server",
+              "",
+              "> Read-only Model Context Protocol server for udaybooking.com, a scheduling and",
+              "> appointment-booking product. It searches and reads the published docs, guides,",
+              "> help centre, pricing and FAQs. It cannot create, change or cancel a booking.",
+              "",
+              `- MCP endpoint (Streamable HTTP, no auth): ${base}${MCP_PATH}`,
+              `- Discovery: ${base}/.well-known/mcp.json`,
+              `- Website: ${config.baseUrl}`,
+              `- Site summary for assistants: ${config.baseUrl}/llms.txt`,
+              "",
+            ].join("\n");
+      res.writeHead(200, {
+        "content-type": "text/plain; charset=utf-8",
+        "cache-control": "public, max-age=3600",
+      });
+      res.end(text);
       return;
     }
 

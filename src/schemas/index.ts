@@ -21,7 +21,7 @@ export const SectionEnum = z
   .enum([...SECTIONS] as [string, ...string[]])
   .describe(
     "Top-level section of the site: home, product, solutions, docs, guides, blog, help, " +
-      "resources, pricing, integrations, security, how-it-works, company, legal.",
+      "resources, pricing, integrations, security, how-it-works, landing, company, legal.",
   );
 
 export const ResponseFormatEnum = z

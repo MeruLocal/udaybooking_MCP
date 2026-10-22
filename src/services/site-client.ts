@@ -8,7 +8,7 @@ import type {
   PageDocument,
   PriceOffer,
 } from "../types.js";
-import { INTERNATIONAL, LLMS_TXT_PATH, MARKET_CODES, SITEMAP_CHILDREN } from "../constants.js";
+import { INTERNATIONAL, LLMS_TXT_PATH, MARKET_CODES, SECTIONS, SITEMAP_CHILDREN } from "../constants.js";
 import { TtlCache } from "../utils/cache.js";
 import { UdayBookingError, notFound } from "../utils/errors.js";
 import {
@@ -335,6 +335,11 @@ function sectionFor(rest: string[]): string {
   const head = rest[0] as string;
   if (["about", "careers", "contact", "demo"].includes(head)) return "company";
   if (["privacy", "terms"].includes(head)) return "legal";
+  // A single-segment page outside every known section (/calendly-alternative,
+  // /round-robin-scheduling, /meeting-scheduler ...) is a commercial landing
+  // page. It carries the comparison and use-case answers an assistant is most
+  // often asked for, so it gets its own section rather than a one-off slug.
+  if (rest.length === 1 && !(SECTIONS as readonly string[]).includes(head)) return "landing";
   return head;
 }
 
