@@ -21,7 +21,7 @@ export const SectionEnum = z
   .enum([...SECTIONS] as [string, ...string[]])
   .describe(
     "Top-level section of the site: home, product, solutions, docs, guides, blog, help, " +
-      "resources, pricing, integrations, security, how-it-works, company, legal.",
+      "resources, pricing, integrations, security, how-it-works, landing, company, legal.",
   );
 
 export const ResponseFormatEnum = z
@@ -275,6 +275,29 @@ export const GetAutomationCapabilitiesOutput = {
 export const GetStartedInput = {
   market: MarketEnum.default(INTERNATIONAL),
   response_format: ResponseFormatEnum.default("markdown"),
+};
+
+export const ListComparisonsInput = {
+  kind: z
+    .enum(["alternatives", "use_cases", "all"])
+    .default("all")
+    .describe("'alternatives' for 'X alternative' comparison pages, 'use_cases' for vertical pages."),
+  market: MarketEnum.default(INTERNATIONAL),
+  response_format: ResponseFormatEnum.default("markdown"),
+};
+
+export const ListComparisonsOutput = {
+  market: z.string(),
+  count: z.number().int(),
+  pages: z.array(
+    z.object({
+      path: z.string(),
+      url: z.string().describe("Canonical page URL, UTM-tagged."),
+      kind: z.enum(["alternative", "use_case"]),
+      title: z.string().optional(),
+      description: z.string().optional(),
+    }),
+  ),
 };
 
 export const GetStartedOutput = {

@@ -11,6 +11,7 @@ import { registerGetPageTool, registerListPagesTool } from "./tools/pages.js";
 import { registerPricingTool } from "./tools/pricing.js";
 import { registerFaqsTool } from "./tools/faqs.js";
 import { registerGetStartedTool } from "./tools/get-started.js";
+import { registerComparisonsTool } from "./tools/comparisons.js";
 import { registerPrompts } from "./prompts.js";
 import {
   registerCapabilitiesTool,
@@ -121,6 +122,7 @@ export function buildServer(overrides?: Partial<Config>, shared?: Services): Bui
   registerSiteSummaryTool(server, site, toolLogger);
   registerCapabilitiesTool(server, toolLogger);
   registerGetStartedTool(server, site, toolLogger);
+  registerComparisonsTool(server, site, toolLogger);
 
   registerPrompts(server);
 

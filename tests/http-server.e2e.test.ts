@@ -130,6 +130,18 @@ describe("HTTP transport hardening (spawned server)", () => {
     expect(doc.transport.url).toBe("https://mcp.udaybooking.com/mcp");
   });
 
+  it("serves the server card, llms.txt and robots.txt on the MCP host", async () => {
+    const card = await raw(main.port, { path: "/.well-known/mcp/server-card.json" });
+    expect(card.status).toBe(200);
+    expect((JSON.parse(card.body) as { transport: { url: string } }).transport.url).toBe(
+      "https://mcp.udaybooking.com/mcp",
+    );
+    const llms = await raw(main.port, { path: "/llms.txt" });
+    expect(llms.status).toBe(200);
+    expect(llms.body).toContain("https://mcp.udaybooking.com/mcp");
+    expect((await raw(main.port, { path: "/robots.txt" })).body).toContain("Allow: /");
+  });
+
   it("without PUBLIC_BASE_URL, never advertises a forwarded host", async () => {
     const r = await raw(capped.port, {
       path: "/.well-known/mcp.json",

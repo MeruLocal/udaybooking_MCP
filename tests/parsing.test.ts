@@ -161,6 +161,13 @@ describe("Sitemap parsing and classification", () => {
     expect(classify({ loc: "https://udaybooking.com/in/demo" })?.section).toBe("company");
   });
 
+  it("classifies single-segment landing pages as 'landing', not a one-off section", () => {
+    expect(classify({ loc: "https://udaybooking.com/calendly-alternative" })?.section).toBe("landing");
+    expect(classify({ loc: "https://udaybooking.com/in/round-robin-scheduling" })?.section).toBe("landing");
+    expect(classify({ loc: "https://udaybooking.com/pricing" })?.section).toBe("pricing");
+    expect(classify({ loc: "https://udaybooking.com/docs/availability" })?.section).toBe("docs");
+  });
+
   it("does not mistake a non-market two-letter path for a market", () => {
     // 'docs' is not a market code, so the page stays international.
     expect(classify({ loc: "https://udaybooking.com/docs" })?.market).toBe("international");

@@ -47,6 +47,10 @@ export const TOOL_CATALOG: readonly ToolSummary[] = [
     summary: "What this server can and cannot do with udaybooking, and the evidence.",
   },
   {
+    name: "udaybooking_list_comparisons",
+    summary: "The site's own comparison (alternative) and use-case landing pages, with URLs.",
+  },
+  {
     name: "udaybooking_get_started",
     summary: "Where to go next to try or buy: pricing, and contact or demo pages when published.",
   },

@@ -56,6 +56,7 @@ describe("tool registration", () => {
       "udaybooking_get_pricing",
       "udaybooking_get_site_summary",
       "udaybooking_get_started",
+      "udaybooking_list_comparisons",
       "udaybooking_list_markets",
       "udaybooking_list_pages",
       "udaybooking_search_content",
