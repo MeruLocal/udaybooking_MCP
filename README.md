@@ -26,6 +26,7 @@ to Udaybooking's published documentation, guides, help centre, pricing and FAQs.
 | `udaybooking_list_markets` | The country editions of the site, plus the international one |
 | `udaybooking_get_site_summary` | The site's own `/llms.txt` summary |
 | `udaybooking_get_automation_capabilities` | What this server can and cannot do, and why |
+| `udaybooking_list_comparisons` | The site's own "alternative" comparison pages and use-case pages, with titles and URLs |
 | `udaybooking_get_started` | Next steps to try or buy: pricing, and contact or demo pages when published |
 
 Resources: `udaybooking://capabilities` and `udaybooking://llms.txt`.
@@ -59,6 +60,8 @@ absolute path:
 ```
 
 **Claude Code:** `claude mcp add udaybooking -- node /path/to/udaybooking_MCP/dist/index.js`
+
+**Remote (no install):** point any Streamable-HTTP client at `https://mcp.udaybooking.com/mcp` (no API key). Example configs for Claude Desktop, Claude Code, Cursor and VS Code are in [`examples/client-configs.md`](examples/client-configs.md).
 
 **HTTP:** `npm run start:http` listens on `127.0.0.1:3004`.
 

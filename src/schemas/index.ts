@@ -277,6 +277,29 @@ export const GetStartedInput = {
   response_format: ResponseFormatEnum.default("markdown"),
 };
 
+export const ListComparisonsInput = {
+  kind: z
+    .enum(["alternatives", "use_cases", "all"])
+    .default("all")
+    .describe("'alternatives' for 'X alternative' comparison pages, 'use_cases' for vertical pages."),
+  market: MarketEnum.default(INTERNATIONAL),
+  response_format: ResponseFormatEnum.default("markdown"),
+};
+
+export const ListComparisonsOutput = {
+  market: z.string(),
+  count: z.number().int(),
+  pages: z.array(
+    z.object({
+      path: z.string(),
+      url: z.string().describe("Canonical page URL, UTM-tagged."),
+      kind: z.enum(["alternative", "use_case"]),
+      title: z.string().optional(),
+      description: z.string().optional(),
+    }),
+  ),
+};
+
 export const GetStartedOutput = {
   market: z.string(),
   call_to_action: z.string(),
