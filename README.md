@@ -804,6 +804,26 @@ permission — say so and the corresponding tools can be implemented against it.
 
 ---
 
+## Use as a plugin
+
+This repo ships an Open Plugins component at [`.mcp.json`](./.mcp.json), so any
+MCP client that reads plugin repos can pick the server up directly. It points at
+the hosted, read-only endpoint:
+
+```json
+{
+  "mcpServers": {
+    "udaybooking": {
+      "type": "http",
+      "url": "https://mcp.udaybooking.com/mcp"
+    }
+  }
+}
+```
+
+No API key is required — the server holds no customer data and performs no write
+actions. To run it yourself instead, see the stdio and HTTP instructions above.
+
 ## License
 
 MIT

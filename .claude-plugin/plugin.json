@@ -1,0 +1,9 @@
+{
+  "name": "udaybooking",
+  "description": "Read-only MCP access to public udaybooking.com website content: pages, documentation, guides, pricing, FAQs and company info.",
+  "version": "1.0.0",
+  "homepage": "https://github.com/MeruLocal/udaybooking_MCP",
+  "repository": "https://github.com/MeruLocal/udaybooking_MCP",
+  "license": "MIT",
+  "keywords": ["mcp", "read-only", "website", "udaybooking"]
+}
