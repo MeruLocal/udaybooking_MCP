@@ -15,6 +15,20 @@ export const SITE_ORIGIN = "https://udaybooking.com";
  */
 export const ALLOWED_HOST = "udaybooking.com";
 
+/**
+ * The exact hostnames this server may fetch: the apex and `www`, nothing else.
+ *
+ * Deliberately not "any subdomain": a subdomain can point at third-party
+ * infrastructure (an app host, a CDN, a future service), and a suffix match
+ * would let a redirect or a crafted URL reach it. The operator-configured
+ * `UDAYBOOKING_BASE_URL` host is also allowed (see `HttpClient`), so a staging
+ * mirror still works.
+ */
+export const ALLOWED_HOSTS: readonly string[] = ["udaybooking.com", "www.udaybooking.com"];
+
+/** Redirect hops followed per request before giving up. */
+export const MAX_REDIRECTS = 5;
+
 /** Sitemap index, plus the three child sitemaps it points at. */
 export const SITEMAP_INDEX = "/sitemap.xml";
 export const SITEMAP_CHILDREN = [

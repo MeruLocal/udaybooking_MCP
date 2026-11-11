@@ -64,6 +64,12 @@ const ConfigSchema = z.object({
       "udaybooking-mcp-server/1.0 (+https://github.com/your-org/udaybooking-mcp-server)",
     ),
 
+  /**
+   * Largest response body read from the origin, in bytes. A larger (or endless)
+   * response is refused rather than buffered whole into memory.
+   */
+  maxResponseBytes: z.coerce.number().int().min(10_000).max(100_000_000).default(5_000_000),
+
   /** Threshold for stderr logging. stdout is reserved for MCP framing. */
   logLevel: z.enum(["debug", "info", "warn", "error", "silent"]).default("info"),
 
@@ -107,6 +113,53 @@ const ConfigSchema = z.object({
    * connected.
    */
   httpSessionIdleTtlMs: z.coerce.number().int().min(10_000).max(86_400_000).default(1_800_000),
+
+  /**
+   * Requests per minute per client IP on the HTTP transport (every path except
+   * `/health`). `0` disables the limit. Without it one client can spend the
+   * whole politeness budget toward udaybooking.com and starve everyone else.
+   */
+  httpRateLimitPerMin: z.coerce.number().int().min(0).max(100_000).default(60),
+
+  /** Most concurrent HTTP sessions. A further `initialize` gets 503. */
+  httpMaxSessions: z.coerce.number().int().min(1).max(100_000).default(100),
+
+  /**
+   * `Host` header values (hostname only, ports ignored) the HTTP transport
+   * answers. Anything else gets a generic 403: this is the DNS-rebinding guard
+   * for clients that send no `Origin`.
+   */
+  httpAllowedHosts: z
+    .string()
+    .default("localhost,127.0.0.1,[::1],mcp.udaybooking.com")
+    .transform((raw) =>
+      raw
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+
+  /**
+   * Trust `X-Forwarded-For` for the client IP (right-most hop only). Set to 1
+   * only behind a proxy you control (Cloudflare/Apache); with no proxy in front
+   * a client could otherwise pick its own rate-limit bucket.
+   */
+  trustProxy: z
+    .string()
+    .regex(/^(true|false|\d{1,2})$/, "must be a hop count such as 0, 1 or 2")
+    .default("0")
+    .transform((v) => (v === "true" ? 1 : v === "false" ? 0 : Number(v))),
+
+  /**
+   * The public base URL advertised by `/.well-known/mcp.json`, for example
+   * `https://mcp.udaybooking.com`. Never derived from forwarded headers. Empty
+   * is treated as unset.
+   */
+  publicBaseUrl: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim() !== "" ? v.trim().replace(/\/+$/, "") : undefined))
+    .pipe(z.string().url().optional()),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -124,12 +177,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     maxConcurrency: env.UDAYBOOKING_MAX_CONCURRENCY,
     indexMaxPages: env.UDAYBOOKING_INDEX_MAX_PAGES,
     userAgent: env.UDAYBOOKING_USER_AGENT,
+    maxResponseBytes: env.UDAYBOOKING_MAX_RESPONSE_BYTES,
     logLevel: env.UDAYBOOKING_LOG_LEVEL,
     // PORT is honoured as a fallback so the usual hosting conventions work.
     httpPort: env.UDAYBOOKING_HTTP_PORT ?? env.PORT,
     httpHost: env.UDAYBOOKING_HTTP_HOST,
     httpAllowedOrigins: env.UDAYBOOKING_HTTP_ALLOWED_ORIGINS,
     httpSessionIdleTtlMs: env.UDAYBOOKING_HTTP_SESSION_IDLE_TTL_MS,
+    httpRateLimitPerMin: env.UDAYBOOKING_HTTP_RATE_LIMIT_PER_MIN,
+    httpMaxSessions: env.UDAYBOOKING_HTTP_MAX_SESSIONS,
+    httpAllowedHosts: env.UDAYBOOKING_HTTP_ALLOWED_HOSTS,
+    trustProxy: env.TRUST_PROXY,
+    publicBaseUrl: env.PUBLIC_BASE_URL,
   });
 
   if (!parsed.success) {

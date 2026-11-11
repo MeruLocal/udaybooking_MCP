@@ -1,6 +1,11 @@
 import type { Config } from "../config.js";
 import type { Logger } from "../utils/logger.js";
-import { ALLOWED_HOST, ROBOTS_DISALLOWED_PREFIXES } from "../constants.js";
+import {
+  ALLOWED_HOST,
+  ALLOWED_HOSTS,
+  MAX_REDIRECTS,
+  ROBOTS_DISALLOWED_PREFIXES,
+} from "../constants.js";
 import { UdayBookingError, disallowedPath, notFound } from "../utils/errors.js";
 
 export interface FetchTextResult {
@@ -9,6 +14,9 @@ export interface FetchTextResult {
   body: string;
   fromCache: false;
 }
+
+/** Redirect statuses this client follows itself, one checked hop at a time. */
+const REDIRECT_STATUS = new Set([301, 302, 303, 307, 308]);
 
 /** Status codes worth another attempt: transient server and throttling errors. */
 const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504, 522, 524]);
@@ -19,9 +27,12 @@ const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504, 522, 524]);
  * Three things it guarantees, each of which exists for a reason observed during
  * analysis:
  *
- * 1. **Host pinning.** Only `udaybooking.com` is reachable. Tool arguments feed
- *    into URLs, so without this a caller could point the server at an arbitrary
- *    host and use it as a proxy.
+ * 1. **Host pinning.** Only the exact hosts in `ALLOWED_HOSTS` (plus the
+ *    configured base URL's host) are reachable. Tool arguments feed into URLs,
+ *    so without this a caller could point the server at an arbitrary host and
+ *    use it as a proxy. Redirects are followed manually and every hop is
+ *    checked *before* it is requested, so a redirect cannot reach another host
+ *    either. Response bodies are capped at `maxResponseBytes`.
  * 2. **robots.txt compliance.** `/api/` is `Disallow`ed for every user agent on
  *    this site, so the client refuses those paths outright instead of trusting
  *    callers to avoid them.
@@ -37,10 +48,23 @@ export class HttpClient {
   /** Timestamp the next request is allowed to start, for the politeness gate. */
   private nextSlotAt = 0;
 
+  /** Exact hostnames that may be fetched. */
+  private readonly allowedHosts: ReadonlySet<string>;
+
   constructor(
     private readonly config: Config,
     private readonly logger: Logger,
-  ) {}
+  ) {
+    // The operator-configured base URL's own host is allowed explicitly, so a
+    // staging mirror keeps working. It is configuration, never a tool argument.
+    const hosts = new Set(ALLOWED_HOSTS);
+    try {
+      hosts.add(new URL(config.baseUrl).hostname.toLowerCase());
+    } catch {
+      // loadConfig already validated the URL; nothing to add otherwise.
+    }
+    this.allowedHosts = hosts;
+  }
 
   /**
    * Resolves a site-relative path (or absolute same-origin URL) and rejects
@@ -65,8 +89,7 @@ export class HttpClient {
     }
 
     const host = url.hostname.toLowerCase();
-    const onAllowedHost = host === ALLOWED_HOST || host.endsWith(`.${ALLOWED_HOST}`);
-    if (!onAllowedHost) {
+    if (!this.allowedHosts.has(host)) {
       throw disallowedPath(
         `Refusing to fetch '${host}'. This server only reads ${ALLOWED_HOST}.`,
         "This restriction is deliberate: it keeps the server from being used to fetch arbitrary hosts.",
@@ -106,18 +129,7 @@ export class HttpClient {
       const timer = setTimeout(() => controller.abort(), this.config.requestTimeoutMs);
 
       try {
-        const res = await fetch(url, {
-          redirect: "follow",
-          signal: controller.signal,
-          headers: {
-            accept: "text/html,application/xhtml+xml,text/plain,application/xml;q=0.9,*/*;q=0.8",
-            "accept-language": "en",
-            "user-agent": this.config.userAgent,
-          },
-        });
-
-        // A redirect may legitimately leave the allowed host; re-check it.
-        this.resolveUrl(res.url || url);
+        const { res, finalUrl } = await this.fetchFollowingRedirects(url, controller.signal);
 
         if (res.status === 404 || res.status === 410) {
           throw notFound(
@@ -143,9 +155,9 @@ export class HttpClient {
           );
         }
 
-        const body = await res.text();
-        this.logger.debug("fetched", { url, status: res.status, bytes: body.length });
-        return { url: res.url || url, status: res.status, body, fromCache: false };
+        const body = await this.readCapped(res, finalUrl);
+        this.logger.debug("fetched", { url: finalUrl, status: res.status, bytes: body.length });
+        return { url: finalUrl, status: res.status, body, fromCache: false };
       } catch (error) {
         lastError = error;
 
@@ -185,6 +197,102 @@ export class HttpClient {
     throw lastError instanceof Error
       ? lastError
       : new UdayBookingError("UPSTREAM_UNAVAILABLE", `Could not reach ${url}.`, { retryable: true });
+  }
+
+  /**
+   * Fetches `startUrl`, following redirects one hop at a time.
+   *
+   * `redirect: "follow"` would let the runtime request an off-host hop before
+   * this code could see it (a server-side request forgery gap). Here each
+   * `Location` goes through `resolveUrl` — host, protocol and robots checks —
+   * before it is requested.
+   */
+  private async fetchFollowingRedirects(
+    startUrl: string,
+    signal: AbortSignal,
+  ): Promise<{ res: Response; finalUrl: string }> {
+    let current = startUrl;
+    for (let hop = 0; ; hop++) {
+      const res = await fetch(current, {
+        redirect: "manual",
+        signal,
+        headers: {
+          accept: "text/html,application/xhtml+xml,text/plain,application/xml;q=0.9,*/*;q=0.8",
+          "accept-language": "en",
+          "user-agent": this.config.userAgent,
+        },
+      });
+
+      if (!REDIRECT_STATUS.has(res.status)) return { res, finalUrl: current };
+
+      await res.body?.cancel().catch(() => undefined);
+      const location = res.headers.get("location");
+      if (!location) {
+        throw new UdayBookingError(
+          "UPSTREAM_UNAVAILABLE",
+          `udaybooking.com answered ${current} with a redirect (${res.status}) but no Location.`,
+          { status: res.status, retryable: false },
+        );
+      }
+      if (hop >= MAX_REDIRECTS) {
+        throw new UdayBookingError(
+          "UPSTREAM_UNAVAILABLE",
+          `Too many redirects (more than ${MAX_REDIRECTS}) starting from ${startUrl}.`,
+          { status: res.status, retryable: false, hint: "The page may be in a redirect loop." },
+        );
+      }
+
+      let next: string;
+      try {
+        next = new URL(location, current).toString();
+      } catch {
+        throw new UdayBookingError(
+          "UPSTREAM_UNAVAILABLE",
+          `udaybooking.com redirected ${current} to an invalid location.`,
+          { status: res.status, retryable: false },
+        );
+      }
+      // Throws DISALLOWED_PATH (not retryable) for an off-host, non-http or
+      // robots-disallowed hop, before anything is sent to it.
+      current = this.resolveUrl(next);
+    }
+  }
+
+  /**
+   * Reads a response body as text, refusing anything above `maxResponseBytes`.
+   * A declared `content-length` above the cap is refused without reading.
+   */
+  private async readCapped(res: Response, url: string): Promise<string> {
+    const cap = this.config.maxResponseBytes;
+    const tooLarge = (): UdayBookingError =>
+      new UdayBookingError(
+        "UPSTREAM_UNAVAILABLE",
+        `The response for ${url} is larger than ${cap} bytes and was not read.`,
+        { retryable: false, hint: "Raise UDAYBOOKING_MAX_RESPONSE_BYTES if this page is legitimately large." },
+      );
+
+    const declared = Number(res.headers.get("content-length"));
+    if (Number.isFinite(declared) && declared > cap) {
+      await res.body?.cancel().catch(() => undefined);
+      throw tooLarge();
+    }
+    if (!res.body) return "";
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let size = 0;
+    let text = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > cap) {
+        await reader.cancel().catch(() => undefined);
+        throw tooLarge();
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    return text + decoder.decode();
   }
 
   /**
